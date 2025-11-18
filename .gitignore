@@ -1,0 +1,94 @@
+# ────────────────────────────────
+# Build outputs / Compiled files
+# ────────────────────────────────
+/dist
+/build
+/node_modules
+/.next
+/out
+/.turbo
+
+# ────────────────────────────────
+# Logs & reports
+# ────────────────────────────────
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ────────────────────────────────
+# Test coverage / cache
+# ────────────────────────────────
+/coverage
+/.nyc_output
+/.cache
+*.cache
+*.swp
+
+# ────────────────────────────────
+# OS generated files
+# ────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ────────────────────────────────
+# Environment & secret files
+# ────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+prisma/.env
+firebase-service-account.json
+serviceAccount.json
+schema.gql
+src/schema.gql
+
+# ────────────────────────────────
+# Runtime / temp files
+# ────────────────────────────────
+pids
+*.pid
+*.pid.lock
+*.seed
+/tmp
+.temp
+.tmp
+
+# ────────────────────────────────
+# Editors & IDEs
+# ────────────────────────────────
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# VSCode (keep project settings only)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ────────────────────────────────
+# Prisma
+# ────────────────────────────────
+/generated/prisma
+prisma/*.db
+prisma/migrations/*/steps.json
+
+# ────────────────────────────────
+# Vite / React specific
+# ────────────────────────────────
+vite.svg
+firebase-service-account.json
+.env
+prisma/.env
+serviceAccount.json

@@ -1,0 +1,334 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+enum UserRoles {
+  ADMIN
+  RM
+  STAFF
+  MARKETING
+}
+
+enum LeadEventType {
+  REVISIT
+  NOTE
+  INTERACTION
+  STATUS_CHANGE
+  ASSIGNMENT
+  PHONE_ADDED
+  PHONE_REMOVED
+  PHONE_MARKED_PRIMARY
+  REMARK_UPDATED
+  BIO_UPDATED
+  HISTORY_SNAPSHOT
+}
+
+// Account application lifecycle
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  DECLINED
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum InteractionChannel {
+  CALL
+  WHATSAPP
+  SMS
+  EMAIL
+  MEETING
+  OTHER
+}
+
+enum InteractionOutcome {
+  NO_ANSWER
+  ANSWERED
+  INTERESTED
+  NOT_INTERESTED
+  FOLLOW_UP_NEEDED
+  WRONG_NUMBER
+}
+
+enum DormantReason {
+  NO_RESPONSE
+  NOT_INTERESTED
+  RISKY_CLIENT
+  OTHER
+}
+
+model LeadEvent {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  leadId     String      @db.ObjectId
+  lead       IpkLeadd    @relation(fields: [leadId], references: [id])
+
+  authorId   String?     @db.ObjectId
+  author     User?       @relation("LeadEventAuthor", fields: [authorId], references: [id])
+
+  type       LeadEventType
+  occurredAt DateTime    @default(now())
+
+  // free text & tags
+  text       String?
+  tags       String[]
+
+  // change snapshots (STATUS_CHANGE, BIO_UPDATED, etc.)
+  prev       Json?
+  next       Json?
+
+  // structured meta (channel/outcome/followup)
+  meta       Json?
+
+  @@index([leadId, occurredAt])
+  @@map("lead_event")
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Profession {
+  SELF_EMPLOYED
+  BUSINESS
+  EMPLOYEE
+}
+
+// Embedded composite type for MongoDB
+type Occupation {
+  profession  Profession
+  companyName String?
+  designation String?
+  startedAt   DateTime?
+  endedAt     DateTime?
+}
+
+enum Product {
+  IAP
+  SIP
+}
+
+
+enum LeadStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  CLOSED
+  OPEN
+}
+
+enum ClientStage {
+  NEW_LEAD
+  FIRST_TALK_DONE
+  FOLLOWING_UP
+  CLIENT_INTERESTED
+  ACCOUNT_OPENED
+  NO_RESPONSE_DORMANT
+  NOT_INTERESTED_DORMANT
+  RISKY_CLIENT_DORMANT
+  HIBERNATED
+}
+
+// RM intent/priority filter — complements ClientStage
+enum LeadStageFilter {
+  NEED_CLARIFICATION
+  FUTURE_INTERESTED
+  NOT_INTERESTED
+  NOT_ELIGIBLE
+  HIGH_PRIORITY
+  LOW_PRIORITY
+  ON_PROCESS
+}
+
+model Counter {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  key     String @unique            // e.g. "lead_seq_2509"
+  current Int    @default(0)
+  @@map("counter")
+}
+
+model AssignmentMeta {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  name  String @unique              // e.g. "RM_ROUND_ROBIN"
+  value Int    @default(0)
+  @@map("assignment_meta")
+}
+
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  archived  Boolean   @default(false)
+  name      String
+  email     String   @unique
+  role      UserRoles
+  firebaseUid String?   @unique
+  passwordHash String?
+  gender    Gender?
+  phone     String?
+  status    Status     @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Optional: diagnostics if you keep it
+  lastAssignedAt DateTime?
+
+  // relation
+  assignedLeads IpkLeadd[] @relation("UserAssignedRm")
+  authoredLeadEvents LeadEvent[] @relation("LeadEventAuthor")
+
+  @@index([role, status, archived])
+  @@index([createdAt])
+  @@map("user")
+}
+
+model IpkLeadd {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+
+  firstName String?
+  lastName  String?
+  name      String?
+  email     String?
+  phone     String
+  phoneNormalized String?
+  phones    LeadPhone[]
+
+  leadCode  String?   // partial unique in DB (create outside Prisma if you prefer)
+
+  gender    Gender?
+  age       Int?
+  location  String?
+
+  referralCode String?
+  referralName String?
+  leadSource   String
+
+  // Removed single profession field; use occupations[].profession per entry
+  // Deprecated single occupation fields removed; use embedded array instead
+  occupations     Occupation[]
+  product         Product?
+  investmentRange String?
+  sipAmount       Int?
+  clientTypes     String?
+
+  remark    Json?
+  history   Json?
+  bioText   String?
+
+  assignedRmId String? @db.ObjectId
+  assignedRm   User?   @relation("UserAssignedRm", fields: [assignedRmId], references: [id])
+  assignedRM   String? // denormalized display name
+
+  status    LeadStatus @default(PENDING)
+  clientStage ClientStage?
+  // Optional RM-assigned intent/priority filter
+  stageFilter LeadStageFilter?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  archived  Boolean    @default(false)
+
+  revisitCount  Int        @default(0)
+  firstSeenAt   DateTime   @default(now())
+  lastSeenAt    DateTime?
+  reenterCount  Int        @default(0)
+  approachAt    DateTime?
+  clientQa      Json?
+
+  // Engagement tracking
+  lastContactedAt DateTime?
+  contactAttempts Int?
+  nextActionDueAt DateTime?
+
+  events        LeadEvent[]
+
+  // Optional scoring for prioritization
+  leadScore Int?
+
+  // Account applications opened by this lead
+  applications AccountApplication[]
+
+  @@index([leadSource])
+  @@index([assignedRmId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("ipk_leadd")
+  @@index([clientStage])
+  @@index([stageFilter])
+}
+
+enum PhoneLabel {
+  PRIMARY
+  MOBILE
+  WHATSAPP
+  WORK
+  HOME
+  OTHER
+}
+
+model LeadPhone {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  leadId     String     @db.ObjectId
+  lead       IpkLeadd   @relation(fields: [leadId], references: [id])
+
+  label      PhoneLabel @default(MOBILE)
+  number     String
+  normalized String
+  isPrimary  Boolean    @default(false)
+  isWhatsapp Boolean    @default(false)
+  verifiedAt DateTime?
+
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([leadId, normalized], map: "uniq_leadphone_lead_norm")
+  @@map("lead_phone")
+}
+
+// Account opening application tied to a lead
+model AccountApplication {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  leadId    String   @db.ObjectId
+  lead      IpkLeadd @relation(fields: [leadId], references: [id])
+
+  applicationStatus ApplicationStatus @default(SUBMITTED)
+  kycStatus         KycStatus         @default(PENDING)
+
+  // Sensitive fields should be encrypted client-side or via service
+  encryptedPan      String?
+  encryptedAadhaar  String?
+
+  // Documents and preferences stored as JSON blobs
+  documents         Json?
+  riskProfile       String?
+  investmentPreferences Json?
+  consentAudit      Json?
+
+  submittedAt DateTime? @default(now())
+  reviewedAt  DateTime?
+  approvedAt  DateTime?
+  declinedAt  DateTime?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([applicationStatus])
+  @@index([kycStatus])
+  @@map("account_application")
+}
