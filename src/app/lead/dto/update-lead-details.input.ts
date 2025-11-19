@@ -36,6 +36,7 @@ export class UpdateLeadDetailsInput {
   // Profile
   @Field({ nullable: true }) bioText?: string;
   @Field({ nullable: true }) remark?: string;
+  @Field({ nullable: true }) nextActionDueAt?: string;
 
   // Optional: next action date when editing
   @Field(() => GraphQLISODateTime, { nullable: true }) approachAt?: Date | null;

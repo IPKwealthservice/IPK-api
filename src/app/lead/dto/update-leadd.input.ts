@@ -1,8 +1,8 @@
 import { Field, ID, InputType, PartialType } from '@nestjs/graphql';
-import { CreateIpkLeaddInput } from './create-lead.input';
+import { UpdateLeadDetailsInput } from './update-lead-details.input';
 
 @InputType()
-export class UpdateIpkLeaddInput extends PartialType(CreateIpkLeaddInput) {
+export class UpdateIpkLeaddInput extends PartialType(UpdateLeadDetailsInput) {
   @Field(() => ID)
   id!: string;
 }

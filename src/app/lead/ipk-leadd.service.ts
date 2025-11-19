@@ -13,13 +13,13 @@ import { CreateIpkLeaddInput } from './dto/create-lead.input';
 import { LeadListArgs } from './dto/lead-list.args';
 import { LeadPhoneInput } from './dto/lead-phone.input';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { appendRemarkHistory, buildRemarkHistoryEntry, RemarkHistoryEntry } from './remark.util';
 import {
   DormantReason,
+  ClientStage as GqlClientStage,
   InteractionChannel,
   InteractionOutcome,
-  ClientStage as GqlClientStage,
 } from './enums/ipk-leadd.enum';
+import { appendRemarkHistory, buildRemarkHistoryEntry, RemarkHistoryEntry } from './remark.util';
 
 @Injectable()
 export class IpkLeaddService {
@@ -27,7 +27,7 @@ export class IpkLeaddService {
     private readonly prisma: PrismaService,
     private readonly dbseq: DbSeqService,
     private readonly leadEvents: LeadEventService,
-  ) {}
+  ) { }
 
   private buildName(f?: string | null, l?: string | null, fb?: string | null) {
     const s = [f, l].filter(Boolean).join(' ');
@@ -87,10 +87,10 @@ export class IpkLeaddService {
     let next =
       Object.keys(data).length > 0
         ? await this.prisma.ipkLeadd.update({
-            where: { id },
-            data,
-            include: { assignedRm: true },
-          })
+          where: { id },
+          data,
+          include: { assignedRm: true },
+        })
         : await this.findLeadById(id);
 
     if (remark !== undefined) {
@@ -141,6 +141,21 @@ export class IpkLeaddService {
 
     if (input.approachAt !== undefined) {
       data.approachAt = parseApproachAt(input.approachAt) ?? null;
+    }
+
+    // Handle nextActionDueAt update
+    if ((input as unknown as { nextActionDueAt?: unknown }).nextActionDueAt !== undefined) {
+      const raw = (input as unknown as { nextActionDueAt?: unknown }).nextActionDueAt;
+      if (raw === null || raw === undefined) {
+        data.nextActionDueAt = null;
+      } else if (raw instanceof Date) {
+        data.nextActionDueAt = raw;
+      } else if (typeof raw === 'string') {
+        const date = new Date(raw);
+        data.nextActionDueAt = isNaN(date.getTime()) ? null : date;
+      } else {
+        data.nextActionDueAt = null;
+      }
     }
 
     if (input.clientQa !== undefined) {
@@ -313,9 +328,9 @@ export class IpkLeaddService {
         endedAt: toDate(o.endedAt),
       }))
       .filter((o) => !!o.profession) as Array<
-      Required<Pick<Prisma.OccupationCreateInput, 'profession'>> &
+        Required<Pick<Prisma.OccupationCreateInput, 'profession'>> &
         Omit<Prisma.OccupationCreateInput, 'profession'>
-    >;
+      >;
     return mapped as Prisma.OccupationCreateInput[];
   }
 
@@ -347,9 +362,9 @@ export class IpkLeaddService {
       const remarkEntry = normalizedRemark ? buildRemarkHistoryEntry(normalizedRemark) : null;
       const nextRemarkJson = hasRemark
         ? (appendRemarkHistory(
-            existing.remark ?? null,
-            remarkEntry!,
-          ) as unknown as Prisma.InputJsonValue)
+          existing.remark ?? null,
+          remarkEntry!,
+        ) as unknown as Prisma.InputJsonValue)
         : (existing.remark as unknown as Prisma.InputJsonValue);
 
       const previousHistory = Array.isArray(existing.history)
@@ -357,13 +372,13 @@ export class IpkLeaddService {
         : [];
       const historyEntry = normalizedRemark
         ? {
-            id: `remark-${Date.now()}`,
-            type: 'REMARK_UPDATED',
-            text: normalizedRemark,
-            at: remarkEntry!.at,
-            authorId: null,
-            authorName: null,
-          }
+          id: `remark-${Date.now()}`,
+          type: 'REMARK_UPDATED',
+          text: normalizedRemark,
+          at: remarkEntry!.at,
+          authorId: null,
+          authorName: null,
+        }
         : null;
       const nextHistoryJson = historyEntry
         ? ([historyEntry, ...previousHistory] as unknown as Prisma.InputJsonValue)
@@ -420,15 +435,15 @@ export class IpkLeaddService {
       : null;
     const historyJson = remarkEntry
       ? ([
-          {
-            id: `remark-${Date.now()}`,
-            type: 'REMARK_UPDATED',
-            text: normalizedRemark,
-            at: remarkEntry.at,
-            authorId: null,
-            authorName: null,
-          },
-        ] as unknown as Prisma.InputJsonValue)
+        {
+          id: `remark-${Date.now()}`,
+          type: 'REMARK_UPDATED',
+          text: normalizedRemark,
+          at: remarkEntry.at,
+          authorId: null,
+          authorName: null,
+        },
+      ] as unknown as Prisma.InputJsonValue)
       : null;
 
     return this.prisma.ipkLeadd.create({
@@ -846,9 +861,7 @@ export class IpkLeaddService {
     const entry = buildRemarkHistoryEntry(normalized, authorId, authorName);
     const nextRemark = appendRemarkHistory(prev?.remark ?? null, entry);
 
-    const previousHistory = Array.isArray(prev?.history)
-      ? (prev?.history as unknown[])
-      : [];
+    const previousHistory = Array.isArray(prev?.history) ? (prev?.history as unknown[]) : [];
     const historyEntry = {
       id: `remark-${Date.now()}`,
       type: 'REMARK_UPDATED',
@@ -998,7 +1011,8 @@ export class IpkLeaddService {
           (stageFilter as unknown as $Enums.LeadStageFilter | null | undefined) === undefined
             ? undefined
             : ((stageFilter as unknown as $Enums.LeadStageFilter | null) ?? null),
-        ...(stage === GqlClientStage.ACCOUNT_OPENED && prev.status === $Enums.LeadStatus.CLOSED
+        // Convert IPK→IDEL when stage changes to ACCOUNT_OPENED
+        ...(stage === GqlClientStage.ACCOUNT_OPENED
           ? { leadCode: this.toIdelLeadCode(prev.leadCode) }
           : {}),
       },
@@ -1085,13 +1099,13 @@ export class IpkLeaddService {
       assignedRmId: rmId, // ★ only the current RM’s leads
       OR: args.search
         ? [
-            { firstName: { contains: args.search, mode: 'insensitive' } },
-            { lastName: { contains: args.search, mode: 'insensitive' } },
-            { name: { contains: args.search, mode: 'insensitive' } },
-            { phone: { contains: args.search } },
-            { leadSource: { contains: args.search, mode: 'insensitive' } },
-            { leadCode: { contains: args.search, mode: 'insensitive' } },
-          ]
+          { firstName: { contains: args.search, mode: 'insensitive' } },
+          { lastName: { contains: args.search, mode: 'insensitive' } },
+          { name: { contains: args.search, mode: 'insensitive' } },
+          { phone: { contains: args.search } },
+          { leadSource: { contains: args.search, mode: 'insensitive' } },
+          { leadCode: { contains: args.search, mode: 'insensitive' } },
+        ]
         : undefined,
     };
 
@@ -1287,13 +1301,13 @@ export class IpkLeaddService {
       // text search
       OR: args.search
         ? [
-            { firstName: { contains: args.search, mode: 'insensitive' } },
-            { lastName: { contains: args.search, mode: 'insensitive' } },
-            { name: { contains: args.search, mode: 'insensitive' } },
-            { phone: { contains: args.search } },
-            { leadSource: { contains: args.search, mode: 'insensitive' } },
-            { leadCode: { contains: args.search, mode: 'insensitive' } },
-          ]
+          { firstName: { contains: args.search, mode: 'insensitive' } },
+          { lastName: { contains: args.search, mode: 'insensitive' } },
+          { name: { contains: args.search, mode: 'insensitive' } },
+          { phone: { contains: args.search } },
+          { leadSource: { contains: args.search, mode: 'insensitive' } },
+          { leadCode: { contains: args.search, mode: 'insensitive' } },
+        ]
         : undefined,
     };
 
@@ -1435,16 +1449,14 @@ export class IpkLeaddService {
     )
       ? (lead.remark as Array<RemarkHistoryEntry & Record<string, unknown>>)
       : typeof lead.remark === 'string' && lead.remark.trim().length > 0
-      ? [
+        ? [
           {
             ...buildRemarkHistoryEntry(String(lead.remark).trim()),
             at: nowIso,
           },
         ]
-      : [];
-    const remarkEntries: Array<RemarkHistoryEntry & Record<string, unknown>> = [
-      ...prevRemarkArr,
-    ];
+        : [];
+    const remarkEntries: Array<RemarkHistoryEntry & Record<string, unknown>> = [...prevRemarkArr];
     const note = (input.note || '').trim();
     if (input.productExplained) {
       const entry = buildRemarkHistoryEntry('First contact: product explained', user.id, byName);
@@ -1457,7 +1469,11 @@ export class IpkLeaddService {
         nextFollowUpAt: input.nextFollowUpAt ? input.nextFollowUpAt.toISOString() : null,
       });
     } else {
-      const entry = buildRemarkHistoryEntry('First contact: product not explained', user.id, byName);
+      const entry = buildRemarkHistoryEntry(
+        'First contact: product not explained',
+        user.id,
+        byName,
+      );
       remarkEntries.push({
         ...entry,
         at: nowIso,
@@ -1534,9 +1550,9 @@ export class IpkLeaddService {
       meta: input.productExplained
         ? ({ productExplained: true, channel: input.channel } as Record<string, unknown>)
         : ({ productExplained: false, reason: input.notExplainedReason ?? null } as Record<
-            string,
-            unknown
-          >),
+          string,
+          unknown
+        >),
       authorId: user.id,
     });
 

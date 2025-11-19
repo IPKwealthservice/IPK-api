@@ -11,7 +11,7 @@ import { LogLeadCallInput } from './dto/lead-event.input';
 
 @Injectable()
 export class LeadEventService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // ----- Queries -----
   getEvents(leadId: string, limit = 100) {
@@ -86,7 +86,7 @@ export class LeadEventService {
     if (nextFollowUpAt) meta.nextFollowUpAt = nextFollowUpAt.toISOString();
     if (dormantReason) meta.dormantReason = dormantReason;
 
-    return this.createEvent({
+    const event = this.createEvent({
       leadId,
       authorId,
       type: LeadEventType.INTERACTION as unknown as $Enums.LeadEventType,
@@ -95,6 +95,15 @@ export class LeadEventService {
       meta:
         (Object.keys(meta).length > 0 ? (meta as Prisma.InputJsonValue) : undefined) ?? undefined,
     });
+
+    // Auto-update lead's nextActionDueAt if nextFollowUpAt is provided
+    if (nextFollowUpAt) {
+      this.updateLeadNextActionDueAt(leadId, nextFollowUpAt).catch((err) =>
+        console.error(`Failed to update nextActionDueAt for lead ${leadId}:`, err),
+      );
+    }
+
+    return event;
   }
 
   remarkUpdated(params: {
@@ -303,5 +312,26 @@ export class LeadEventService {
       tags: ['WHATSAPP'],
       meta: { phoneId: phone.id } as Prisma.InputJsonValue,
     });
+  }
+
+  /**
+   * Update lead's nextActionDueAt based on event's follow-up date
+   * Called after creating interactions with nextFollowUpAt
+   */
+  async updateLeadNextActionDueAt(leadId: string, nextActionDueAt: Date | null) {
+    if (!leadId) return null;
+
+    try {
+      return await this.prisma.ipkLeadd.update({
+        where: { id: leadId },
+        data: {
+          nextActionDueAt: nextActionDueAt ?? null,
+        },
+        include: { assignedRm: true },
+      });
+    } catch (error) {
+      console.error(`Failed to update nextActionDueAt for lead ${leadId}:`, error);
+      return null;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
@@ -19,12 +19,29 @@ import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
             strict: true,
             deprecationErrors: true,
           },
+          // Connection pool settings
+          maxPoolSize: 10,
+          minPoolSize: 2,
+          maxIdleTimeMS: 60000, // Close idle connections after 1 minute
+
+          // Timeout settings
+          connectTimeoutMS: 10000,
+          socketTimeoutMS: 45000,
+          serverSelectionTimeoutMS: 10000,
+
+          // Retry settings
+          retryWrites: true,
+          retryReads: true,
         });
 
-        await client.connect();
-
-        // optional: ping to confirm
-        await client.db('admin').command({ ping: 1 });
+        try {
+          await client.connect();
+          await client.db('admin').command({ ping: 1 });
+          console.log('✅ MongoDB connected successfully');
+        } catch (error) {
+          console.error('❌ MongoDB connection failed:', error);
+          throw error;
+        }
 
         return client;
       },
@@ -41,4 +58,4 @@ import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
   ],
   exports: [MONGO_CLIENT, MONGO_DB],
 })
-export class MongoModule {}
+export class MongoModule { }
