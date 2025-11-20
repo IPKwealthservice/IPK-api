@@ -13,7 +13,7 @@ const isProd = !!environment.production;
       driver: ApolloDriver,
       path: '/graphql',
       // Use in-memory schema to avoid file watching restart loops
-      autoSchemaFile: true,
+      autoSchemaFile: 'schema.gql',
       sortSchema: true,
       introspection: true, // allows Apollo Sandbox & tools in dev
       csrfPrevention: false, // avoid 400 errors from CSRF plugin

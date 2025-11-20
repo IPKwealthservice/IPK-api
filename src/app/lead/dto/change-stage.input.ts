@@ -20,7 +20,7 @@ export class ChangeStageInput {
   @Field(() => InteractionChannel, { nullable: true })
   channel?: InteractionChannel;
 
-  // UI “Next follow-up date” → stored in lead.approachAt
+  // UI “Next follow-up date” → stored in lead.nextActionDueAt
   @Field(() => Date, { nullable: true })
   nextFollowUpAt?: Date;
 

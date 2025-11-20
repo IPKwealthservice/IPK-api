@@ -1,5 +1,6 @@
 import { ForbiddenException, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Args, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import { $Enums } from '@prisma/client';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -14,27 +15,26 @@ import { UserEntity, UserLiteModel } from '../user/entities/user.entity';
 import { UserRoles } from '../user/enums/user.enums';
 import { AssignLeadInput, AssignLeadsBulkInput } from './dto/assign.input';
 import { ChangeStageInput } from './dto/change-stage.input';
-import { BulkLeadRowInput, CreateIpkLeaddInput } from './dto/create-lead.input';
+import { BulkLeadRowInput, CreateIpkLeaddInput } from './dto/create/create-lead.input';
 import { LeadListArgs } from './dto/lead-list.args';
-import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadPhoneInput, UpdateLeadBioInput, UpdateLeadRemarkInput } from './dto/lead-phone.input';
 import { ReassignLeadInput } from './dto/reassign-lead.input';
 import { RmFirstContactInput } from './dto/rm-first-contact.input';
-import { UpdateLeadDetailsInput } from './dto/update-lead-details.input';
-import { UpdateIpkLeaddInput } from './dto/update-leadd.input';
+import { UpdateLeadDetailsInput } from './dto/update/update-lead-details.input';
+import { UpdateLeadDto } from './dto/update/update-lead.dto';
+import { UpdateIpkLeaddInput } from './dto/update/update-leadd.input';
 import { BulkImportResult } from './entities/bulk-result.model';
 import { AssignBulkResult, AssignResult, IpkLeaddEntity } from './entities/ipk-leadd.model';
-import { RemarkEntry } from './entities/remark.model';
 import { LeadPage } from './entities/lead-page.model';
 import { LeadPhoneEntity } from './entities/lead-phone.model';
+import { RemarkEntry } from './entities/remark.model';
 import { StageSummary } from './entities/stage-summary.model';
 import { ClientStage, LeadStatus } from './enums/ipk-leadd.enum';
-import { $Enums } from '@prisma/client';
 import { IpkLeaddService } from './ipk-leadd.service';
 
 @Resolver(() => IpkLeaddEntity)
 export class IpkLeaddResolver {
-  constructor(private readonly service: IpkLeaddService) {}
+  constructor(private readonly service: IpkLeaddService) { }
 
   @Mutation(() => IpkLeaddEntity, { name: 'createIpkLeadd' })
   createIpkLeadd(@Args('input') input: CreateIpkLeaddInput) {

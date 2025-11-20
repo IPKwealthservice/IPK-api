@@ -8,11 +8,11 @@ import { normalizePhone, parseApproachAt } from '../common/phone.util';
 import { AssignMode } from '../lead/enums/ipk-leadd.enum';
 import { LeadEventService } from '../lead_event/lead-event.service';
 import { ChangeStageInput } from './dto/change-stage.input';
-import { CreateLeadDto } from './dto/create-lead.dto';
-import { CreateIpkLeaddInput } from './dto/create-lead.input';
+import { CreateLeadDto } from './dto/create/create-lead.dto';
+import { CreateIpkLeaddInput } from './dto/create/create-lead.input';
 import { LeadListArgs } from './dto/lead-list.args';
 import { LeadPhoneInput } from './dto/lead-phone.input';
-import { UpdateLeadDto } from './dto/update-lead.dto';
+import { LeadPhoneUpdateDto, UpdateLeadDto } from './dto/update/update-lead.dto';
 import {
   DormantReason,
   ClientStage as GqlClientStage,
@@ -49,13 +49,8 @@ export class IpkLeaddService {
   }
 
   async createLead(input: CreateLeadDto) {
-    const approachAt = parseApproachAt(input.approachAt);
-    const payload: CreateIpkLeaddInput = {
-      ...input,
-      approachAt: approachAt ?? undefined,
-    } as unknown as CreateIpkLeaddInput;
-
-    return this.createPendingLead(payload);
+    const payload = input as unknown as CreateIpkLeaddInput;
+    return this.createPendingLead(payload, { allowApproachAt: false });
   }
 
   async findAllLeads(includeArchived = false) {
@@ -95,6 +90,11 @@ export class IpkLeaddService {
 
     if (remark !== undefined) {
       next = await this.updateRemark(id, remark, null, null);
+    }
+
+    if (input.phones !== undefined) {
+      await this.syncLeadPhones(id, input.phones);
+      next = (await this.findLeadById(id)) ?? next;
     }
 
     return next;
@@ -137,10 +137,6 @@ export class IpkLeaddService {
     if (input.phone !== undefined) {
       data.phone = input.phone ?? null;
       data.phoneNormalized = normalizePhone(input.phone) ?? null;
-    }
-
-    if (input.approachAt !== undefined) {
-      data.approachAt = parseApproachAt(input.approachAt) ?? null;
     }
 
     // Handle nextActionDueAt update
@@ -202,7 +198,8 @@ export class IpkLeaddService {
       referralName?: string;
       bioText?: string;
       remark?: string | null;
-      approachAt?: Date | string | null;
+      nextActionDueAt?: Date | string | null;
+      phones?: LeadPhoneUpdateDto[];
     },
     authorId?: string | null,
     authorName?: string | null,
@@ -227,13 +224,14 @@ export class IpkLeaddService {
       referralCode: input.referralCode,
       referralName: input.referralName,
       bioText: input.bioText,
-      approachAt: input.approachAt as unknown as string,
+      nextActionDueAt: input.nextActionDueAt as unknown as string,
       stageFilter: (input as unknown as { stageFilter?: string }).stageFilter,
       clientQa: undefined,
       clientTypes: undefined,
       remark: undefined,
       leadSource: undefined,
       occupations: input.occupations,
+      phones: input.phones,
     };
     const patch = this.buildLeadUpdateData(patchLike as unknown as UpdateLeadDto);
 
@@ -261,7 +259,7 @@ export class IpkLeaddService {
         'referralCode',
         'referralName',
         'bioText',
-        'approachAt',
+        'nextActionDueAt',
         'occupations',
       ];
       const prevRec = prev as unknown as Record<string, unknown>;
@@ -294,6 +292,11 @@ export class IpkLeaddService {
 
     if (input.remark !== undefined) {
       next = await this.updateRemark(leadId, input.remark, authorId ?? null, authorName ?? null);
+    }
+
+    if (input.phones !== undefined) {
+      await this.syncLeadPhones(leadId, input.phones);
+      next = (await this.findLeadById(leadId)) ?? next;
     }
 
     return next;
@@ -334,10 +337,74 @@ export class IpkLeaddService {
     return mapped as Prisma.OccupationCreateInput[];
   }
 
+  private async syncLeadPhones(leadId: string, phones: LeadPhoneUpdateDto[]) {
+    if (!phones) return;
+
+    if (phones.length === 0) {
+      await this.prisma.leadPhone.deleteMany({ where: { leadId } });
+      return;
+    }
+
+    if (phones.length > 4) {
+      throw new BadRequestException('A maximum of 4 phone numbers are allowed');
+    }
+
+    const existing = await this.prisma.leadPhone.findMany({ where: { leadId } });
+    const existingById = new Map(existing.map((p) => [p.id, p]));
+    const keepIds = new Set<string>();
+    const seenNormalized = new Set<string>();
+    let primaryCount = 0;
+
+    for (const phone of phones) {
+      const normalized = normalizePhone(phone.number);
+      if (!normalized) {
+        throw new BadRequestException('Invalid phone number provided');
+      }
+      if (seenNormalized.has(normalized)) {
+        throw new BadRequestException('Duplicate phone numbers are not allowed');
+      }
+      seenNormalized.add(normalized);
+
+      const data = {
+        label: (phone.label as $Enums.PhoneLabel) ?? $Enums.PhoneLabel.MOBILE,
+        number: phone.number,
+        normalized,
+        isPrimary: Boolean(phone.isPrimary),
+        isWhatsapp: Boolean(phone.isWhatsapp),
+      };
+
+      if (data.isPrimary) primaryCount++;
+      if (primaryCount > 1) {
+        throw new BadRequestException('Only one primary phone is allowed');
+      }
+
+      if (phone.id && existingById.has(phone.id)) {
+        keepIds.add(phone.id);
+        await this.prisma.leadPhone.update({
+          where: { id: phone.id },
+          data,
+        });
+      } else {
+        const created = await this.prisma.leadPhone.create({
+          data: { ...data, leadId },
+        });
+        keepIds.add(created.id);
+      }
+    }
+
+    const toRemove = existing.filter((p) => !keepIds.has(p.id));
+    if (toRemove.length > 0) {
+      await this.prisma.leadPhone.deleteMany({
+        where: { id: { in: toRemove.map((p) => p.id) } },
+      });
+    }
+  }
+
   /** Create OPEN lead if new; if same phone exists, treat as RE-ENTRY */
-  async createPendingLead(input: CreateIpkLeaddInput) {
+  async createPendingLead(input: CreateIpkLeaddInput, options?: { allowApproachAt?: boolean }) {
+    const allowApproachAt = options?.allowApproachAt ?? false;
     const pn = normalizePhone(input.phone);
-    const approachAt = parseApproachAt(input.approachAt);
+    const approachAt = allowApproachAt ? parseApproachAt(input.approachAt) : null;
     const clientQa = input.clientQa ?? null;
     const occupations = this.sanitizeOccupations(input.occupations) ?? [];
     const existing = await this.prisma.ipkLeadd.findFirst({
@@ -412,7 +479,7 @@ export class IpkLeaddService {
 
           reenterCount: { increment: 1 },
           lastSeenAt: new Date(),
-          approachAt: approachAt ?? existing.approachAt ?? null,
+          ...(allowApproachAt ? { approachAt: approachAt ?? existing.approachAt ?? null } : {}),
           clientQa:
             input.clientQa !== undefined
               ? (input.clientQa as unknown as Prisma.InputJsonValue)
@@ -484,7 +551,7 @@ export class IpkLeaddService {
         reenterCount: 0,
         firstSeenAt: new Date(),
         lastSeenAt: new Date(),
-        approachAt: approachAt ?? null,
+        ...(allowApproachAt ? { approachAt: approachAt ?? null } : {}),
         clientQa: clientQa ? (clientQa as unknown as Prisma.InputJsonValue) : null,
         stageFilter: (input.stageFilter as unknown as $Enums.LeadStageFilter) ?? null,
       },
@@ -604,7 +671,7 @@ export class IpkLeaddService {
 
         // normalize
         r.phone = normalizePhone(r.phone) ?? r.phone;
-        const res = await this.createPendingLead(r);
+        const res = await this.createPendingLead(r, { allowApproachAt: true });
 
         // crude dup check before create
         if (res.reenterCount && res.reenterCount > 0) merged++;
@@ -772,14 +839,15 @@ export class IpkLeaddService {
         status: true,
         clientStage: true,
         approachAt: true,
+        nextActionDueAt: true,
         lastSeenAt: true,
         revisitCount: true,
       },
     });
 
     const leadUpdate: Prisma.IpkLeaddUpdateInput = { lastSeenAt: now };
-    if (nextFollowUpAt) {
-      leadUpdate.approachAt = nextFollowUpAt;
+    if (nextFollowUpAt !== undefined) {
+      leadUpdate.nextActionDueAt = nextFollowUpAt ?? null;
     }
 
     // Outcome-based transitions
@@ -821,12 +889,14 @@ export class IpkLeaddService {
           status: prev.status,
           clientStage: prev.clientStage,
           approachAt: prev.approachAt,
+          nextActionDueAt: prev.nextActionDueAt,
           lastSeenAt: prev.lastSeenAt,
         },
         next: {
           status: next.status,
           clientStage: next.clientStage,
           approachAt: next.approachAt,
+          nextActionDueAt: next.nextActionDueAt,
           lastSeenAt: next.lastSeenAt,
         },
         meta: {
@@ -989,6 +1059,7 @@ export class IpkLeaddService {
         assignedRmId: true,
         remark: true,
         approachAt: true,
+        nextActionDueAt: true,
         lastSeenAt: true,
         leadCode: true,
         name: true,
@@ -1000,12 +1071,13 @@ export class IpkLeaddService {
     });
     if (!prev) throw new Error('Lead not found');
 
-    // Update minimal lead fields: clientStage + approachAt + lastSeenAt
+    // Update minimal lead fields: clientStage + nextActionDueAt + lastSeenAt
     const next = await this.prisma.ipkLeadd.update({
       where: { id: leadId },
       data: {
         clientStage: stage as unknown as $Enums.ClientStage,
-        approachAt: nextFollowUpAt ?? prev.approachAt ?? null,
+        nextActionDueAt:
+          nextFollowUpAt !== undefined ? (nextFollowUpAt ?? null) : (prev.nextActionDueAt ?? null),
         lastSeenAt: new Date(),
         stageFilter:
           (stageFilter as unknown as $Enums.LeadStageFilter | null | undefined) === undefined
@@ -1046,6 +1118,7 @@ export class IpkLeaddService {
         clientStage: prev.clientStage,
         stageFilter: prev.stageFilter,
         approachAt: prev.approachAt,
+        nextActionDueAt: prev.nextActionDueAt,
         lastSeenAt: prev.lastSeenAt,
         assignedRM: prev.assignedRM,
         leadCode: prev.leadCode,
@@ -1061,6 +1134,7 @@ export class IpkLeaddService {
         clientStage: next.clientStage,
         stageFilter: (next as unknown as { stageFilter?: unknown }).stageFilter,
         approachAt: next.approachAt,
+        nextActionDueAt: next.nextActionDueAt,
         lastSeenAt: next.lastSeenAt,
         assignedRM: next.assignedRM,
         leadCode: next.leadCode,
@@ -1321,9 +1395,9 @@ export class IpkLeaddService {
       });
     }
 
-    // follow-up due (approachAt <= now)
+    // follow-up due (nextActionDueAt <= now)
     if (args.followUpDueOnly) {
-      andParts.push({ approachAt: { lte: new Date() } });
+      andParts.push({ nextActionDueAt: { lte: new Date() } });
     }
 
     // no contact since N days
@@ -1393,6 +1467,7 @@ export class IpkLeaddService {
         clientStage: true,
         status: true,
         approachAt: true,
+        nextActionDueAt: true,
         lastSeenAt: true,
         leadCode: true,
         name: true,
@@ -1428,8 +1503,7 @@ export class IpkLeaddService {
     const updateData: Prisma.IpkLeaddUpdateInput = {
       lastSeenAt: now,
       lastContactedAt: now,
-      approachAt: input.nextFollowUpAt ?? lead.approachAt ?? null,
-      nextActionDueAt: input.nextFollowUpAt ?? null,
+      nextActionDueAt: input.nextFollowUpAt ?? lead.nextActionDueAt ?? null,
     };
 
     if (input.productExplained) {
@@ -1523,6 +1597,7 @@ export class IpkLeaddService {
         status: lead.status,
         clientStage: lead.clientStage,
         approachAt: lead.approachAt,
+        nextActionDueAt: lead.nextActionDueAt,
         lastSeenAt: lead.lastSeenAt,
         assignedRM: lead.assignedRM,
         leadCode: lead.leadCode,
@@ -1537,6 +1612,7 @@ export class IpkLeaddService {
         status: next.status,
         clientStage: next.clientStage,
         approachAt: next.approachAt,
+        nextActionDueAt: next.nextActionDueAt,
         lastSeenAt: next.lastSeenAt,
         assignedRM: next.assignedRM,
         leadCode: next.leadCode,

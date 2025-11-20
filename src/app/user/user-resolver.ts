@@ -175,6 +175,7 @@ export class UserResolver {
       investmentRange: r.investmentRange ?? null,
       sipAmount: r.sipAmount ?? null,
       clientTypes: r.clientTypes ?? null,
+      nextActionDueAt: r.nextActionDueAt ?? null,
       remark: Array.isArray(r.remark)
         ? (r.remark as unknown as import('../lead/entities/remark.model').RemarkModel[])
         : undefined,

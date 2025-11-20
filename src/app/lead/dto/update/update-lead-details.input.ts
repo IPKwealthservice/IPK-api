@@ -1,6 +1,6 @@
-import { Field, GraphQLISODateTime, ID, InputType } from '@nestjs/graphql';
-import { LeadStageFilter } from '../enums/ipk-leadd.enum';
-import { OccupationInput } from './create-lead.input';
+import { Field, ID, InputType } from '@nestjs/graphql';
+import { ClientStage, LeadStageFilter, PhoneLabel } from '../../enums/ipk-leadd.enum';
+import { OccupationInput } from './../create/create-lead.input';
 
 @InputType()
 export class UpdateLeadDetailsInput {
@@ -38,9 +38,29 @@ export class UpdateLeadDetailsInput {
   @Field({ nullable: true }) remark?: string;
   @Field({ nullable: true }) nextActionDueAt?: string;
 
-  // Optional: next action date when editing
-  @Field(() => GraphQLISODateTime, { nullable: true }) approachAt?: Date | null;
-
   // Optional RM intent/priority filter
   @Field(() => LeadStageFilter, { nullable: true }) stageFilter?: LeadStageFilter;
+  @Field(() => ClientStage, { nullable: true }) ClientStage?: ClientStage;
+
+  // Phone collection updates
+  @Field(() => [UpdateLeadPhoneInput], { nullable: true })
+  phones?: UpdateLeadPhoneInput[];
+}
+
+@InputType()
+export class UpdateLeadPhoneInput {
+  @Field(() => ID, { nullable: true })
+  id?: string;
+
+  @Field(() => PhoneLabel, { defaultValue: PhoneLabel.MOBILE })
+  label?: PhoneLabel;
+
+  @Field(() => String)
+  number!: string;
+
+  @Field(() => Boolean, { nullable: true })
+  isPrimary?: boolean;
+
+  @Field(() => Boolean, { nullable: true })
+  isWhatsapp?: boolean;
 }

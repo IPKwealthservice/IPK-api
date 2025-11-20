@@ -47,12 +47,14 @@ export interface IpkLeaddModel {
   clientQa?: ClientQaItem[] | null;
   lastContactedAt?: Date | null;
   contactAttempts?: number | null;
+  // Scheduled follow-up date maintained on RM/Admin workflows.
   nextActionDueAt?: Date | null;
   assignedRmId?: string | null;
   assignedRM?: string | null;
   status: LeadStatus;
   clientStage?: LeadStageFilter;
   stageFilter?: string | null;
+  // Bulk-registration timestamp; read-only for non-import flows.
   approachAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

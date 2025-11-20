@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { CreateLeadDto } from './dto/create-lead.dto';
-import { UpdateLeadDto } from './dto/update-lead.dto';
+import { CreateLeadDto } from './dto/create/create-lead.dto';
+import { UpdateLeadDto } from './dto/update/update-lead.dto';
 import { IpkLeaddService } from './ipk-leadd.service';
 
 @Controller('ipk-leads')
 export class LeadController {
-  constructor(private readonly leads: IpkLeaddService) {}
+  constructor(private readonly leads: IpkLeaddService) { }
 
   @Post()
   create(@Body() input: CreateLeadDto) {

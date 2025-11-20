@@ -36,7 +36,7 @@ export class LeadListArgs {
   @Field(() => ID, { nullable: true }) assignedRmId?: string;
 
   // ★ helpers
-  @Field(() => Boolean, { nullable: true }) followUpDueOnly?: boolean; // approachAt <= now
+  @Field(() => Boolean, { nullable: true }) followUpDueOnly?: boolean; // nextActionDueAt <= now
   @Field(() => Int, { nullable: true }) lastSeenBeforeDays?: number; // no contact since N days
 
   // existing dormant helpers

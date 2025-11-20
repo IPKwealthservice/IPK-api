@@ -1,5 +1,5 @@
 import { Field, GraphQLISODateTime, InputType } from '@nestjs/graphql';
-import { LeadStageFilter } from '../enums/ipk-leadd.enum';
+import { LeadStageFilter } from '../../enums/ipk-leadd.enum';
 
 @InputType()
 export class CreateIpkLeaddInput {
@@ -65,4 +65,4 @@ export class OccupationInput {
   endedAt?: Date;
 }
 @InputType()
-export class BulkLeadRowInput extends CreateIpkLeaddInput {}
+export class BulkLeadRowInput extends CreateIpkLeaddInput { }

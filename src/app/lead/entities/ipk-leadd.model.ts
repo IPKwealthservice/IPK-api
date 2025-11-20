@@ -100,6 +100,7 @@ export class IpkLeaddEntity {
   @Field(() => LeadStageFilter, { nullable: true })
   stageFilter?: LeadStageFilter | null;
 
+  // Bulk-import metadata; remains read-only during day-to-day workflows.
   @Field(() => GraphQLISODateTime, { nullable: true })
   approachAt?: Date | null;
 
@@ -112,6 +113,7 @@ export class IpkLeaddEntity {
   @Field(() => Int, { nullable: true })
   contactAttempts?: number | null;
 
+  // RM/Admin follow-up due date.
   @Field(() => GraphQLISODateTime, { nullable: true })
   nextActionDueAt?: Date | null;
 
