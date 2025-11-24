@@ -6,16 +6,17 @@ import {
 import {
   AssignMode,
   ClientStage,
-  LeadStageFilter,
   DormantReason,
   InteractionChannel,
   InteractionOutcome,
   LeadEventType,
+  LeadStageFilter,
   LeadStatus,
   PhoneLabel,
   ProductEnum,
   ProfessionEnum,
 } from '../lead/enums/ipk-leadd.enum';
+import { CallDirection, CallStatus } from '../lead/lead-call-log/enums/lead-call-log.enum';
 import { Status, UserRoles } from '../user/enums/user.enums';
 import { Gender } from './common.enum';
 
@@ -35,3 +36,5 @@ registerEnumType(DormantReason, { name: 'DormantReason' });
 registerEnumType(ApplicationStatusEnum, { name: 'ApplicationStatus' });
 registerEnumType(KycStatusEnum, { name: 'KycStatus' });
 registerEnumType(AssignMode, { name: 'AssignMode' });
+registerEnumType(CallDirection, { name: 'LogCallDirection' });
+registerEnumType(CallStatus, { name: 'CallStatus' });

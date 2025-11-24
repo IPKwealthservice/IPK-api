@@ -4,6 +4,7 @@ import { $Enums, Prisma } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { DbSeqService } from '../../common/db-seq.service';
 import { makeMonthlyLeadKey, pad4 } from '../../common/leadcode.util';
+import { buildAndNormalizeFullName, normalizeLeadNames } from '../../common/utils/name-normalize';
 import { normalizePhone, parseApproachAt } from '../common/phone.util';
 import { AssignMode } from '../lead/enums/ipk-leadd.enum';
 import { LeadEventService } from '../lead_event/lead-event.service';
@@ -28,11 +29,6 @@ export class IpkLeaddService {
     private readonly dbseq: DbSeqService,
     private readonly leadEvents: LeadEventService,
   ) { }
-
-  private buildName(f?: string | null, l?: string | null, fb?: string | null) {
-    const s = [f, l].filter(Boolean).join(' ');
-    return s || fb || undefined;
-  }
 
   // Mongo ObjectId strings are 24 hex characters
   private isValidObjectId(id: string | null | undefined): boolean {
@@ -111,9 +107,17 @@ export class IpkLeaddService {
   private buildLeadUpdateData(input: UpdateLeadDto): Prisma.IpkLeaddUpdateInput {
     const data: Prisma.IpkLeaddUpdateInput = {};
 
-    if (input.firstName !== undefined) data.firstName = input.firstName ?? null;
-    if (input.lastName !== undefined) data.lastName = input.lastName ?? null;
-    if (input.name !== undefined) data.name = input.name ?? null;
+    const normalizedNames = normalizeLeadNames({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      name: input.name,
+    });
+    const nameTouched =
+      input.firstName !== undefined || input.lastName !== undefined || input.name !== undefined;
+
+    if (input.firstName !== undefined) data.firstName = normalizedNames.firstName ?? null;
+    if (input.lastName !== undefined) data.lastName = normalizedNames.lastName ?? null;
+    if (nameTouched) data.name = normalizedNames.name ?? null;
     if (input.email !== undefined) data.email = input.email ?? null;
     if (input.leadSource !== undefined) data.leadSource = input.leadSource;
     if (input.referralCode !== undefined) data.referralCode = input.referralCode ?? null;
@@ -407,6 +411,11 @@ export class IpkLeaddService {
     const approachAt = allowApproachAt ? parseApproachAt(input.approachAt) : null;
     const clientQa = input.clientQa ?? null;
     const occupations = this.sanitizeOccupations(input.occupations) ?? [];
+    const normalizedInputNames = normalizeLeadNames({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      name: input.name,
+    });
     const existing = await this.prisma.ipkLeadd.findFirst({
       where: {
         OR: [pn ? { phoneNormalized: pn } : undefined, { phone: input.phone }].filter(
@@ -418,10 +427,24 @@ export class IpkLeaddService {
     });
 
     if (existing) {
+      const existingNames = normalizeLeadNames({
+        firstName: existing.firstName,
+        lastName: existing.lastName,
+        name: existing.name,
+      });
+      const mergedFirstName =
+        normalizedInputNames.firstName !== undefined
+          ? normalizedInputNames.firstName
+          : existingNames.firstName ?? null;
+      const mergedLastName =
+        normalizedInputNames.lastName !== undefined
+          ? normalizedInputNames.lastName
+          : existingNames.lastName ?? null;
       const mergedName =
-        input.name ??
-        this.buildName(input.firstName, input.lastName, existing.name) ??
-        existing.name;
+        normalizedInputNames.name !== undefined
+          ? normalizedInputNames.name
+          : buildAndNormalizeFullName(existingNames.name, mergedFirstName, mergedLastName) ??
+            existingNames.name;
 
       // Normalize incoming remark, if any
       const hasRemark = input.remark !== undefined && input.remark !== null;
@@ -454,8 +477,8 @@ export class IpkLeaddService {
       return this.prisma.ipkLeadd.update({
         where: { id: existing.id },
         data: {
-          firstName: input.firstName ?? existing.firstName,
-          lastName: input.lastName ?? existing.lastName,
+          firstName: mergedFirstName,
+          lastName: mergedLastName,
           name: mergedName,
           email: input.email ?? existing.email,
           location: input.location ?? existing.location,
@@ -515,9 +538,15 @@ export class IpkLeaddService {
 
     return this.prisma.ipkLeadd.create({
       data: {
-        firstName: input.firstName ?? null,
-        lastName: input.lastName ?? null,
-        name: input.name ?? this.buildName(input.firstName, input.lastName, null),
+        firstName: normalizedInputNames.firstName ?? null,
+        lastName: normalizedInputNames.lastName ?? null,
+        name:
+          normalizedInputNames.name ??
+          buildAndNormalizeFullName(
+            null,
+            normalizedInputNames.firstName ?? null,
+            normalizedInputNames.lastName ?? null,
+          ),
 
         email: input.email ?? null,
         phone: input.phone,
@@ -1071,23 +1100,32 @@ export class IpkLeaddService {
     });
     if (!prev) throw new Error('Lead not found');
 
-    // Update minimal lead fields: clientStage + nextActionDueAt + lastSeenAt
+    // Auto-open pending leads when moving from NEW_LEAD to FIRST_TALK_DONE
+    const shouldAutoOpen =
+      stage === GqlClientStage.FIRST_TALK_DONE &&
+      prev.clientStage === $Enums.ClientStage.NEW_LEAD &&
+      prev.status === $Enums.LeadStatus.PENDING;
+
+    // Update minimal lead fields: clientStage + nextActionDueAt + lastSeenAt (+status when needed)
+    const updateData: Prisma.IpkLeaddUpdateInput = {
+      clientStage: stage as unknown as $Enums.ClientStage,
+      nextActionDueAt:
+        nextFollowUpAt !== undefined ? (nextFollowUpAt ?? null) : (prev.nextActionDueAt ?? null),
+      lastSeenAt: new Date(),
+      stageFilter:
+        (stageFilter as unknown as $Enums.LeadStageFilter | null | undefined) === undefined
+          ? undefined
+          : ((stageFilter as unknown as $Enums.LeadStageFilter | null) ?? null),
+      // Convert IPK→IDEL when stage changes to ACCOUNT_OPENED
+      ...(stage === GqlClientStage.ACCOUNT_OPENED
+        ? { leadCode: this.toIdelLeadCode(prev.leadCode) }
+        : {}),
+      ...(shouldAutoOpen ? { status: $Enums.LeadStatus.OPEN } : {}),
+    };
+
     const next = await this.prisma.ipkLeadd.update({
       where: { id: leadId },
-      data: {
-        clientStage: stage as unknown as $Enums.ClientStage,
-        nextActionDueAt:
-          nextFollowUpAt !== undefined ? (nextFollowUpAt ?? null) : (prev.nextActionDueAt ?? null),
-        lastSeenAt: new Date(),
-        stageFilter:
-          (stageFilter as unknown as $Enums.LeadStageFilter | null | undefined) === undefined
-            ? undefined
-            : ((stageFilter as unknown as $Enums.LeadStageFilter | null) ?? null),
-        // Convert IPK→IDEL when stage changes to ACCOUNT_OPENED
-        ...(stage === GqlClientStage.ACCOUNT_OPENED
-          ? { leadCode: this.toIdelLeadCode(prev.leadCode) }
-          : {}),
-      },
+      data: updateData,
     });
 
     // Build an informative text line for the timeline
@@ -1152,6 +1190,10 @@ export class IpkLeaddService {
       },
       authorId,
     });
+
+    if (prev.status !== next.status) {
+      await this.leadEvents.statusChanged(leadId, prev.status, next.status, authorId ?? null);
+    }
 
     // Optional: if you also want a lightweight interaction line
     if (note) {

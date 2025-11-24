@@ -92,3 +92,4 @@ firebase-service-account.json
 .env
 prisma/.env
 serviceAccount.json
+package-lock.json

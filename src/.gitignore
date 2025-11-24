@@ -21,6 +21,7 @@ public
 public
 src/icons
 prisma/migrations
+package-lock.json
 *.png
 *.jpg
 *.jpeg

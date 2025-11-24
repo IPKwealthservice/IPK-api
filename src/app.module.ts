@@ -8,6 +8,7 @@ import { ApiConfigModule } from './app/core/config/config.module';
 import { FirebaseModule } from './app/core/firebase/firebase.module';
 import { GraphqlModule } from './app/core/graphql/graphql.module';
 import './app/enums/app.enum';
+import { LeadCallLogModule } from './app/lead/lead-call-log/lead-call-log.module';
 import { IpkLeaddModule } from './app/lead/ipk-leadd.module';
 import { RmModule } from './app/salesrm/rm.module';
 import { UserModule } from './app/user/user-api.module';
@@ -23,6 +24,7 @@ import { HealthModule } from './common/health.module';
     AuthModule,
 
     IpkLeaddModule,
+    LeadCallLogModule,
     RmModule,
     UserModule,
     AccountApplicationModule,

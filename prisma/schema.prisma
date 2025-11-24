@@ -67,6 +67,33 @@ enum DormantReason {
   OTHER
 }
 
+enum CallDirection {
+  INCOMING
+  OUTGOING
+}
+
+enum CallStatus {
+  PENDING
+  COMPLETED
+  MISSED
+}
+
+model LeadCallLog {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  leadId         String      @db.ObjectId
+  direction      CallDirection
+  status         CallStatus
+  phoneNumber    String
+  durationSec    Int?        // null if pending or not connected
+  occurredAt     DateTime    @default(now())
+  nextFollowUpAt DateTime?   // if user schedules a follow-up
+  createdBy      String      @db.ObjectId  // references User.id
+  createdByRole  UserRoles   // store role (ADMIN, RM, etc)
+  
+  @@index([leadId, status, occurredAt])
+  @@map("lead_call_log")
+}
+
 model LeadEvent {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   leadId     String      @db.ObjectId
