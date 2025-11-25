@@ -317,6 +317,7 @@ model LeadPhone {
   normalized String
   isPrimary  Boolean    @default(false)
   isWhatsapp Boolean    @default(false)
+  archived   Boolean    @default(false)
   verifiedAt DateTime?
 
   createdAt  DateTime   @default(now())

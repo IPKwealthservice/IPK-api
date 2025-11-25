@@ -8,6 +8,7 @@ import { buildAndNormalizeFullName, normalizeLeadNames } from '../../common/util
 import { normalizePhone, parseApproachAt } from '../common/phone.util';
 import { AssignMode } from '../lead/enums/ipk-leadd.enum';
 import { LeadEventService } from '../lead_event/lead-event.service';
+import { LeadPhoneService } from './lead-phone.service';
 import { ChangeStageInput } from './dto/change-stage.input';
 import { CreateLeadDto } from './dto/create/create-lead.dto';
 import { CreateIpkLeaddInput } from './dto/create/create-lead.input';
@@ -28,6 +29,7 @@ export class IpkLeaddService {
     private readonly prisma: PrismaService,
     private readonly dbseq: DbSeqService,
     private readonly leadEvents: LeadEventService,
+    private readonly leadPhones: LeadPhoneService,
   ) { }
 
   // Mongo ObjectId strings are 24 hex characters
@@ -60,18 +62,21 @@ export class IpkLeaddService {
   async findLeadById(id: string) {
     // Avoid Prisma P2023 by validating Mongo ObjectId
     if (!this.isValidObjectId(id)) return null;
-    return this.prisma.ipkLeadd.findUnique({
+    const lead = await this.prisma.ipkLeadd.findUnique({
       where: { id },
-      include: { assignedRm: true, phones: true, events: true },
+      include: { assignedRm: true, events: true },
     });
+    if (!lead) return null;
+    const phones = await this.leadPhones.getPhones(id);
+    return { ...lead, phones };
   }
 
   async updateLead(id: string, input: UpdateLeadDto) {
     const { remark, ...rest } = input as UpdateLeadDto & { remark?: string | null };
     const data = this.buildLeadUpdateData(rest as UpdateLeadDto);
 
-    // If no fields to update and no remark provided, just return current
-    if (Object.keys(data).length === 0 && remark === undefined) {
+    // If no fields to update and no remark/phone update provided, just return current
+    if (Object.keys(data).length === 0 && remark === undefined && input.phones === undefined) {
       return this.findLeadById(id);
     }
 
@@ -89,7 +94,7 @@ export class IpkLeaddService {
     }
 
     if (input.phones !== undefined) {
-      await this.syncLeadPhones(id, input.phones);
+      await this.leadPhones.syncLeadPhones(id, input.phones);
       next = (await this.findLeadById(id)) ?? next;
     }
 
@@ -239,8 +244,14 @@ export class IpkLeaddService {
     };
     const patch = this.buildLeadUpdateData(patchLike as unknown as UpdateLeadDto);
 
-    // If nothing to change, just return current
-    if (Object.keys(patch).length === 0) return prev;
+    // If nothing to change and no phone/remark update requested, just return current
+    if (
+      Object.keys(patch).length === 0 &&
+      input.phones === undefined &&
+      input.remark === undefined
+    ) {
+      return prev;
+    }
 
     let next = await this.prisma.ipkLeadd.update({ where: { id: leadId }, data: patch });
 
@@ -299,7 +310,7 @@ export class IpkLeaddService {
     }
 
     if (input.phones !== undefined) {
-      await this.syncLeadPhones(leadId, input.phones);
+      await this.leadPhones.syncLeadPhones(leadId, input.phones);
       next = (await this.findLeadById(leadId)) ?? next;
     }
 
@@ -339,69 +350,6 @@ export class IpkLeaddService {
         Omit<Prisma.OccupationCreateInput, 'profession'>
       >;
     return mapped as Prisma.OccupationCreateInput[];
-  }
-
-  private async syncLeadPhones(leadId: string, phones: LeadPhoneUpdateDto[]) {
-    if (!phones) return;
-
-    if (phones.length === 0) {
-      await this.prisma.leadPhone.deleteMany({ where: { leadId } });
-      return;
-    }
-
-    if (phones.length > 4) {
-      throw new BadRequestException('A maximum of 4 phone numbers are allowed');
-    }
-
-    const existing = await this.prisma.leadPhone.findMany({ where: { leadId } });
-    const existingById = new Map(existing.map((p) => [p.id, p]));
-    const keepIds = new Set<string>();
-    const seenNormalized = new Set<string>();
-    let primaryCount = 0;
-
-    for (const phone of phones) {
-      const normalized = normalizePhone(phone.number);
-      if (!normalized) {
-        throw new BadRequestException('Invalid phone number provided');
-      }
-      if (seenNormalized.has(normalized)) {
-        throw new BadRequestException('Duplicate phone numbers are not allowed');
-      }
-      seenNormalized.add(normalized);
-
-      const data = {
-        label: (phone.label as $Enums.PhoneLabel) ?? $Enums.PhoneLabel.MOBILE,
-        number: phone.number,
-        normalized,
-        isPrimary: Boolean(phone.isPrimary),
-        isWhatsapp: Boolean(phone.isWhatsapp),
-      };
-
-      if (data.isPrimary) primaryCount++;
-      if (primaryCount > 1) {
-        throw new BadRequestException('Only one primary phone is allowed');
-      }
-
-      if (phone.id && existingById.has(phone.id)) {
-        keepIds.add(phone.id);
-        await this.prisma.leadPhone.update({
-          where: { id: phone.id },
-          data,
-        });
-      } else {
-        const created = await this.prisma.leadPhone.create({
-          data: { ...data, leadId },
-        });
-        keepIds.add(created.id);
-      }
-    }
-
-    const toRemove = existing.filter((p) => !keepIds.has(p.id));
-    if (toRemove.length > 0) {
-      await this.prisma.leadPhone.deleteMany({
-        where: { id: { in: toRemove.map((p) => p.id) } },
-      });
-    }
   }
 
   /** Create OPEN lead if new; if same phone exists, treat as RE-ENTRY */
@@ -719,10 +667,7 @@ export class IpkLeaddService {
 
   // --------------------------- Phones ---------------------------------
   async getPhones(leadId: string) {
-    return this.prisma.leadPhone.findMany({
-      where: { leadId },
-      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
-    });
+    return this.leadPhones.getPhones(leadId);
   }
 
   async getEvents(leadId: string, limit = 100) {
@@ -730,116 +675,19 @@ export class IpkLeaddService {
   }
 
   async addPhone(leadId: string, input: LeadPhoneInput, authorId?: string | null) {
-    const normalized = normalizePhone(input.number);
-    if (!normalized) throw new Error('Invalid phone number');
-
-    const existingCount = await this.prisma.leadPhone.count({ where: { leadId } });
-    if (existingCount >= 4) throw new Error('Maximum 4 phone numbers allowed per lead');
-
-    // Create phone entry
-    const created = await this.prisma.leadPhone.create({
-      data: {
-        leadId,
-        label: input.label as $Enums.PhoneLabel,
-        number: input.number,
-        normalized,
-        isPrimary: Boolean(input.isPrimary),
-        isWhatsapp: Boolean(input.isWhatsapp),
-      },
-    });
-
-    // Ensure single primary: if created isPrimary or there was none, normalize primaries
-    if (created.isPrimary) {
-      await this.prisma.leadPhone.updateMany({
-        where: { leadId, NOT: { id: created.id } },
-        data: { isPrimary: false },
-      });
-    } else {
-      const hasPrimary = await this.prisma.leadPhone.findFirst({
-        where: { leadId, isPrimary: true },
-      });
-      if (!hasPrimary) {
-        await this.prisma.leadPhone.update({
-          where: { id: created.id },
-          data: { isPrimary: true },
-        });
-      }
-    }
-
-    await this.leadEvents.phoneAdded(
-      leadId,
-      {
-        id: created.id,
-        number: created.number,
-        normalized: created.normalized,
-        label: String(created.label),
-      },
-      authorId,
-    );
-
-    return this.getPhones(leadId);
+    return this.leadPhones.addPhone(leadId, input, authorId);
   }
 
   async removePhone(phoneId: string, authorId?: string | null) {
-    const phone = await this.prisma.leadPhone.findUnique({ where: { id: phoneId } });
-    if (!phone) throw new Error('Phone not found');
-
-    await this.prisma.leadPhone.delete({ where: { id: phoneId } });
-
-    // If primary removed, pick another as primary if exists
-    if (phone.isPrimary) {
-      const next = await this.prisma.leadPhone.findFirst({
-        where: { leadId: phone.leadId },
-        orderBy: { createdAt: 'asc' },
-      });
-      if (next) {
-        await this.prisma.leadPhone.update({ where: { id: next.id }, data: { isPrimary: true } });
-      }
-    }
-
-    await this.leadEvents.phoneRemoved(
-      phone.leadId,
-      { id: phoneId, number: phone.number, label: String(phone.label) },
-      authorId,
-    );
-
-    return this.getPhones(phone.leadId);
+    return this.leadPhones.removePhone(phoneId, authorId);
   }
 
   async markPrimaryPhone(phoneId: string, authorId?: string | null) {
-    const phone = await this.prisma.leadPhone.findUnique({ where: { id: phoneId } });
-    if (!phone) throw new Error('Phone not found');
-
-    // Perform sequential updates to avoid transactions on Mongo
-    await this.prisma.leadPhone.updateMany({
-      where: { leadId: phone.leadId, NOT: { id: phoneId } },
-      data: { isPrimary: false },
-    });
-    await this.prisma.leadPhone.update({ where: { id: phoneId }, data: { isPrimary: true } });
-
-    await this.leadEvents.phoneMarkedPrimary(
-      phone.leadId,
-      { id: phoneId, number: phone.number, label: String(phone.label) },
-      authorId,
-    );
-
-    return this.getPhones(phone.leadId);
+    return this.leadPhones.markPrimaryPhone(phoneId, authorId);
   }
 
   async setWhatsapp(phoneId: string, isWhatsapp: boolean, authorId?: string | null) {
-    const phone = await this.prisma.leadPhone.findUnique({ where: { id: phoneId } });
-    if (!phone) throw new Error('Phone not found');
-    const updated = await this.prisma.leadPhone.update({
-      where: { id: phoneId },
-      data: { isWhatsapp },
-    });
-    await this.leadEvents.whatsappToggled(
-      phone.leadId,
-      { id: phoneId, number: phone.number },
-      isWhatsapp,
-      authorId,
-    );
-    return updated;
+    return this.leadPhones.setWhatsapp(phoneId, isWhatsapp, authorId);
   }
 
   // --------------------------- Events & Updates ------------------------

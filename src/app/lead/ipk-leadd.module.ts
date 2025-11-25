@@ -11,6 +11,7 @@ import { UserModule } from '../user/user-api.module';
 import { LeadController } from './lead.controller';
 import { IpkLeaddResolver } from './lead.resolver';
 import { IpkLeaddService } from './ipk-leadd.service';
+import { LeadPhoneService } from './lead-phone.service';
 import { LeadEventModule } from '../lead_event/lead-event.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { LeadEventModule } from '../lead_event/lead-event.module';
   providers: [
     IpkLeaddResolver,
     IpkLeaddService,
+    LeadPhoneService,
     PrismaService,
     DbSeqService,
     AssignmentService,
