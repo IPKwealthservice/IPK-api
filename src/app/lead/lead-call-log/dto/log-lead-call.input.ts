@@ -1,5 +1,5 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { CallDirection, CallStatus } from '../enums/lead-call-log.enum'; // adjust path as per your project
+import { CallDirection, CallFailReason, CallSource, CallStatus } from '../enums/lead-call-log.enum';
 
 @InputType('LeadCallLogInput')
 export class LeadCallLogInput {
@@ -12,6 +12,9 @@ export class LeadCallLogInput {
   @Field(() => CallStatus)
   status!: CallStatus;
 
+  @Field(() => CallSource, { nullable: true })
+  source?: CallSource;
+
   @Field()
   phoneNumber!: string;
 
@@ -20,6 +23,9 @@ export class LeadCallLogInput {
 
   @Field({ nullable: true })
   nextFollowUpAt?: Date;
+
+  @Field(() => CallFailReason, { nullable: true })
+  failReason?: CallFailReason;
 
   // createdBy & role will come from context/user session
 }

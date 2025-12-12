@@ -15,3 +15,15 @@ export enum UserRoles {
     STAFF = 'STAFF',
     MARKETING = 'MARKETING',
 }
+
+export enum CallSource {
+    SYSTEM = 'SYSTEM',
+    INCOMING = 'INCOMING',
+}
+
+export enum CallFailReason {
+    NO_ANSWER = 'NO_ANSWER',
+    BUSY = 'BUSY',
+    SWITCHED_OFF = 'SWITCHED_OFF',
+    NOT_REACHABLE = 'NOT_REACHABLE',
+}

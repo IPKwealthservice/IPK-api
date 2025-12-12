@@ -82,18 +82,23 @@ model LeadCallLog {
   id             String      @id @default(auto()) @map("_id") @db.ObjectId
   leadId         String      @db.ObjectId
   direction      CallDirection
+  source         CallSource
   status         CallStatus
+  failReason     CallFailReason?
+
   phoneNumber    String
-  durationSec    Int?        // null if pending or not connected
+  durationSec    Int?
   occurredAt     DateTime    @default(now())
-  nextFollowUpAt DateTime?   // if user schedules a follow-up
-  createdBy      String      @db.ObjectId  // references User.id
-  createdByRole  UserRoles   // store role (ADMIN, RM, etc)
-  
-  @@index([leadId, status, occurredAt])
+  nextFollowUpAt DateTime?
+
+  createdBy      String      @db.ObjectId
+  createdByName  String
+
+  @@index([leadId])
+  @@index([status])
+  @@index([nextFollowUpAt])
   @@map("lead_call_log")
 }
-
 model LeadEvent {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   leadId     String      @db.ObjectId
@@ -182,6 +187,18 @@ enum LeadStageFilter {
   HIGH_PRIORITY
   LOW_PRIORITY
   ON_PROCESS
+}
+
+enum CallSource {
+  SYSTEM      // RM called from app
+  INCOMING    // lead called RM
+}
+
+enum CallFailReason {
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  NOT_REACHABLE
 }
 
 model Counter {

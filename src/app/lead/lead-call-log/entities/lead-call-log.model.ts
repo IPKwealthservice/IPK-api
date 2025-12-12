@@ -1,5 +1,5 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { CallDirection, CallStatus } from '../enums/lead-call-log.enum';
+import { CallDirection, CallFailReason, CallSource, CallStatus } from '../enums/lead-call-log.enum';
 
 @ObjectType('LeadCallLog')
 export class LeadCallLogModel {
@@ -12,8 +12,14 @@ export class LeadCallLogModel {
     @Field((type) => CallDirection)
     direction!: CallDirection;
 
+    @Field((type) => CallSource)
+    source!: CallSource;
+
     @Field((type) => CallStatus)
     status!: CallStatus;
+
+    @Field((type) => CallFailReason, { nullable: true })
+    failReason?: CallFailReason;
 
     @Field()
     phoneNumber!: string;
@@ -31,5 +37,5 @@ export class LeadCallLogModel {
     createdBy!: string;
 
     @Field()
-    createdByRole!: string;
+    createdByName!: string;
 }

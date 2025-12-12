@@ -8,8 +8,8 @@ import { ApiConfigModule } from './app/core/config/config.module';
 import { FirebaseModule } from './app/core/firebase/firebase.module';
 import { GraphqlModule } from './app/core/graphql/graphql.module';
 import './app/enums/app.enum';
-import { LeadCallLogModule } from './app/lead/lead-call-log/lead-call-log.module';
 import { IpkLeaddModule } from './app/lead/ipk-leadd.module';
+import { LeadCallLogModule } from './app/lead/lead-call-log/lead-call-log.module';
 import { RmModule } from './app/salesrm/rm.module';
 import { UserModule } from './app/user/user-api.module';
 import { UserApiService } from './app/user/user-api.service';
@@ -33,4 +33,4 @@ import { HealthModule } from './common/health.module';
   controllers: [AppController],
   providers: [AppService, UserApiService],
 })
-export class AppModule {}
+export class AppModule { }

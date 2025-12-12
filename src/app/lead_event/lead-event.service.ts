@@ -229,26 +229,31 @@ export class LeadEventService {
       meta.outcome = input.outcome;
     }
 
-    const [event] = await this.prisma.$transaction([
-      this.prisma.leadEvent.create({
-        data: {
-          leadId: input.leadId,
-          authorId: userId,
-          type: LeadEventType.INTERACTION as unknown as $Enums.LeadEventType,
-          occurredAt,
-          text: input.text ?? null,
-          tags: [],
-          meta: meta as Prisma.InputJsonValue,
-        },
-      }),
-      this.prisma.ipkLeadd.update({
-        where: { id: input.leadId },
-        data: {
-          lastContactedAt: occurredAt,
-          contactAttempts: { increment: 1 },
-        },
-      }),
-    ]);
+    const event = await this.runWithTransactionRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        const createdEvent = await tx.leadEvent.create({
+          data: {
+            leadId: input.leadId,
+            authorId: userId,
+            type: LeadEventType.INTERACTION as unknown as $Enums.LeadEventType,
+            occurredAt,
+            text: input.text ?? null,
+            tags: [],
+            meta: meta as Prisma.InputJsonValue,
+          },
+        });
+
+        await tx.ipkLeadd.update({
+          where: { id: input.leadId },
+          data: {
+            lastContactedAt: occurredAt,
+            contactAttempts: { increment: 1 },
+          },
+        });
+
+        return createdEvent;
+      }, { timeout: 8000 }),
+    );
 
     return event;
   }
@@ -333,5 +338,39 @@ export class LeadEventService {
       console.error(`Failed to update nextActionDueAt for lead ${leadId}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Retry wrapper for Prisma transactions to soften transient write-conflict/deadlock errors (P2034).
+   * Exponential backoff helps avoid hammering the same row during bursts of concurrent updates.
+   */
+  private async runWithTransactionRetry<T>(fn: () => Promise<T>): Promise<T> {
+    const maxAttempts = 3;
+    const baseDelayMs = 100;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        if (this.isWriteConflictError(error) && attempt < maxAttempts) {
+          const delayMs = baseDelayMs * 2 ** (attempt - 1);
+          await this.delay(delayMs);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError as Error;
+  }
+
+  private isWriteConflictError(error: unknown): error is { code?: string } {
+    return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'P2034');
+  }
+
+  private delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -16,7 +16,7 @@ import {
   ProductEnum,
   ProfessionEnum,
 } from '../lead/enums/ipk-leadd.enum';
-import { CallDirection, CallStatus } from '../lead/lead-call-log/enums/lead-call-log.enum';
+import { CallDirection, CallFailReason, CallSource, CallStatus } from '../lead/lead-call-log/enums/lead-call-log.enum';
 import { Status, UserRoles } from '../user/enums/user.enums';
 import { Gender } from './common.enum';
 
@@ -38,3 +38,5 @@ registerEnumType(KycStatusEnum, { name: 'KycStatus' });
 registerEnumType(AssignMode, { name: 'AssignMode' });
 registerEnumType(CallDirection, { name: 'LogCallDirection' });
 registerEnumType(CallStatus, { name: 'CallStatus' });
+registerEnumType(CallSource, { name: 'CallSource' });
+registerEnumType(CallFailReason, { name: 'CallFailReason' });
