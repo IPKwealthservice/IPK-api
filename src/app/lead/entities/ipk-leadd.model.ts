@@ -38,6 +38,9 @@ export class IpkLeaddEntity {
   leadCode?: string | null;
 
   @Field(() => String, { nullable: true })
+  clientCode?: string | null;
+
+  @Field(() => String, { nullable: true })
   gender?: string | null;
 
   @Field(() => Int, { nullable: true })

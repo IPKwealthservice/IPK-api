@@ -32,6 +32,7 @@ export class UpdateLeadDetailsInput {
   // Referral
   @Field({ nullable: true }) referralCode?: string;
   @Field({ nullable: true }) referralName?: string;
+  @Field({ nullable: true }) clientCode?: string;
 
   // Profile
   @Field({ nullable: true }) bioText?: string;

@@ -253,6 +253,7 @@ model IpkLeadd {
   phones    LeadPhone[]
 
   leadCode  String?   // partial unique in DB (create outside Prisma if you prefer)
+  clientCode String?
 
   gender    Gender?
   age       Int?
@@ -313,6 +314,7 @@ model IpkLeadd {
   @@map("ipk_leadd")
   @@index([clientStage])
   @@index([stageFilter])
+  @@index([clientCode])
 }
 
 enum PhoneLabel {

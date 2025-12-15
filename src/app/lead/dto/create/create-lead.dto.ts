@@ -57,6 +57,11 @@ export class CreateLeadDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(64)
+  clientCode?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(32)
   referralCode?: string;
 

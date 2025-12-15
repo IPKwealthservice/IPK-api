@@ -10,6 +10,7 @@ export class CreateIpkLeaddInput {
 
   @Field() phone!: string;
   @Field() leadSource!: string;
+  @Field({ nullable: true }) clientCode?: string;
 
   @Field({ nullable: true }) referralCode?: string;
   @Field({ nullable: true }) referralName?: string;

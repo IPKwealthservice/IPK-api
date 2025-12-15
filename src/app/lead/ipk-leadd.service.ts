@@ -125,6 +125,7 @@ export class IpkLeaddService {
     if (nameTouched) data.name = normalizedNames.name ?? null;
     if (input.email !== undefined) data.email = input.email ?? null;
     if (input.leadSource !== undefined) data.leadSource = input.leadSource;
+    if (input.clientCode !== undefined) data.clientCode = input.clientCode ?? null;
     if (input.referralCode !== undefined) data.referralCode = input.referralCode ?? null;
     if (input.referralName !== undefined) data.referralName = input.referralName ?? null;
     if (input.gender !== undefined) data.gender = (input.gender as $Enums.Gender | null) ?? null;
@@ -205,6 +206,7 @@ export class IpkLeaddService {
       sipAmount?: number;
       referralCode?: string;
       referralName?: string;
+      clientCode?: string;
       bioText?: string;
       remark?: string | null;
       nextActionDueAt?: Date | string | null;
@@ -232,6 +234,7 @@ export class IpkLeaddService {
       sipAmount: input.sipAmount,
       referralCode: input.referralCode,
       referralName: input.referralName,
+      clientCode: input.clientCode,
       bioText: input.bioText,
       nextActionDueAt: input.nextActionDueAt as unknown as string,
       stageFilter: (input as unknown as { stageFilter?: string }).stageFilter,
@@ -273,6 +276,7 @@ export class IpkLeaddService {
         'sipAmount',
         'referralCode',
         'referralName',
+        'clientCode',
         'bioText',
         'nextActionDueAt',
         'occupations',
@@ -432,6 +436,7 @@ export class IpkLeaddService {
           location: input.location ?? existing.location,
           referralCode: input.referralCode ?? existing.referralCode ?? null,
           referralName: input.referralName ?? existing.referralName ?? null,
+          clientCode: input.clientCode ?? existing.clientCode ?? null,
           gender: (input.gender as $Enums.Gender) ?? existing.gender ?? null,
           age: (input.age as number | null) ?? existing.age ?? null,
           product: (input.product as $Enums.Product) ?? existing.product ?? null,
@@ -503,6 +508,7 @@ export class IpkLeaddService {
 
         referralCode: input.referralCode ?? null,
         referralName: input.referralName ?? null,
+        clientCode: input.clientCode ?? null,
 
         gender: (input.gender as $Enums.Gender) ?? null,
         age: (input.age as number | null) ?? null,
