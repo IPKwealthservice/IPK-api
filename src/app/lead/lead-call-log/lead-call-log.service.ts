@@ -11,6 +11,11 @@ type Caller = {
   name?: string | null;
 };
 
+type MissedCallsResult = {
+  calls: PrismaLeadCallLog[];
+  total: number;
+};
+
 @Injectable()
 export class LeadCallLogService {
   constructor(private readonly prisma: PrismaService) { }
@@ -101,6 +106,33 @@ export class LeadCallLogService {
       orderBy: { occurredAt: 'desc' },
       take: limit,
     });
+  }
+
+  /** Missed calls list + total count (for UI summaries) */
+  async getMissedWithCount(
+    params: {
+      leadId?: string;
+      createdBy?: string;
+      limit?: number;
+    } = {},
+  ): Promise<MissedCallsResult> {
+    const { leadId, createdBy, limit = 100 } = params;
+    const where: Prisma.LeadCallLogWhereInput = {
+      status: CallStatus.MISSED,
+      ...(leadId ? { leadId } : {}),
+      ...(createdBy ? { createdBy } : {}),
+    };
+
+    const [calls, total] = await this.prisma.$transaction([
+      this.prisma.leadCallLog.findMany({
+        where,
+        orderBy: { occurredAt: 'desc' },
+        take: limit,
+      }),
+      this.prisma.leadCallLog.count({ where }),
+    ]);
+
+    return { calls, total };
   }
 
   /** Fetch a single call log by ID or throw */

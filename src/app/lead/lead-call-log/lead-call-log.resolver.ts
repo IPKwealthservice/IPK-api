@@ -5,6 +5,7 @@ import { GqlAuthGuard } from '../../auth/gql-auth.guard';
 import { UserEntity } from '../../user/entities/user.entity';
 import { LeadCallLogInput } from './dto/log-lead-call.input';
 import { LeadCallLogModel } from './entities/lead-call-log.model';
+import { MissedLeadCallSummary } from './entities/missed-lead-call-summary.model';
 import { CallFailReason, CallStatus } from './enums/lead-call-log.enum';
 import { LeadCallLogService } from './lead-call-log.service';
 
@@ -62,6 +63,20 @@ export class LeadCallLogResolver {
     @Args('limit', { type: () => Int, nullable: true }) limit = 100,
   ) {
     return this.service.getMissed({
+      leadId: leadId ?? undefined,
+      createdBy: user.id,
+      limit,
+    });
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Query(() => MissedLeadCallSummary, { name: 'missedLeadCallsSummary' })
+  missedLeadCallsSummary(
+    @CurrentUser() user: UserEntity,
+    @Args('leadId', { type: () => ID, nullable: true }) leadId?: string,
+    @Args('limit', { type: () => Int, nullable: true }) limit = 100,
+  ) {
+    return this.service.getMissedWithCount({
       leadId: leadId ?? undefined,
       createdBy: user.id,
       limit,
