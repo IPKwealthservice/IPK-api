@@ -14,6 +14,7 @@ import { RmModule } from './app/salesrm/rm.module';
 import { UserModule } from './app/user/user-api.module';
 import { UserApiService } from './app/user/user-api.service';
 import { HealthModule } from './common/health.module';
+import { OnboardingAuthModule } from "./app/onboarding-auth/onboarding-auth.module";
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { HealthModule } from './common/health.module';
     UserModule,
     AccountApplicationModule,
     HealthModule,
+
+    OnboardingAuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, UserApiService],

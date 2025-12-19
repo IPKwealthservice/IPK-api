@@ -298,6 +298,94 @@ model IpkLeadd {
   @@index([stageFilter])
 }
 
+model OnboardingProfile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId    String   @unique
+
+  // PERSONAL
+  name      String?
+  gender    String?
+  dob       DateTime?
+  age       Int?
+  occupation String?
+  income    String?
+  company   String?
+  designation String?
+  pan       String?
+  aadhaar   String?
+
+  // ADDRESS
+  commAddress String?
+  permAddress String?
+  location    String?
+
+  // CONTACT
+  mobile    String
+  whatsapp  String?
+  email     String?
+  language  String?
+
+  // DEMAT
+  dpId      String?
+  clientCode String?
+  brokerName String?
+  schemeName String?
+
+  // NOMINEE
+  nomineeName String?
+  nomineeRelationship String?
+  nomineeContact String?
+  nomineeEmail String?
+  nomineeAadhar String?
+  nomineePan String?
+
+  // BANK
+  holderName String?
+  bankName   String?
+  accNumber  String?
+  ifsc       String?
+  micr       String?
+
+  // BILLING
+  billName  String?
+  gst       String?
+  billingAddress String?
+
+  status    String   @default("IN_PROGRESS")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OnboardingStatus {
+  NEW
+  COMPLETED
+}
+
+model Lead {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadCode  String   @unique
+  name      String
+  mobile    String
+  source    String
+
+  onboardingProfile OnboardingProfile?
+
+  createdAt DateTime @default(now())
+}
+
+model OnboardingProfile {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  leadId    String            @unique @db.ObjectId
+  status    OnboardingStatus  @default(NEW)
+
+  lead      Lead @relation(fields: [leadId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
 enum PhoneLabel {
   PRIMARY
   MOBILE
