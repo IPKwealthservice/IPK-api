@@ -21,7 +21,7 @@ export class OnboardingService {
         leadId: true,
         name: true,
         mobile: true,
-        source: true,
+        //source: true,
         status: true,
       },
     });
@@ -42,7 +42,7 @@ export class OnboardingService {
         leadId: true,
         name: true,
         mobile: true,
-        source: true,
+        //source: true,
         status: true,
       },
     });
