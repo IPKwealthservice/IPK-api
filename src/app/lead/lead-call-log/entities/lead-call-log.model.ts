@@ -3,39 +3,45 @@ import { CallDirection, CallFailReason, CallSource, CallStatus } from '../enums/
 
 @ObjectType('LeadCallLog')
 export class LeadCallLogModel {
-    @Field((type) => ID)
-    id!: string;
+  @Field((type) => ID)
+  id!: string;
 
-    @Field()
-    leadId!: string;
+  @Field()
+  leadId!: string;
 
-    @Field((type) => CallDirection)
-    direction!: CallDirection;
+  @Field({ nullable: true })
+  leadName?: string;
 
-    @Field((type) => CallSource)
-    source!: CallSource;
+  @Field({ nullable: true })
+  leadCode?: string;
 
-    @Field((type) => CallStatus)
-    status!: CallStatus;
+  @Field((_type) => CallDirection)
+  direction!: CallDirection;
 
-    @Field((type) => CallFailReason, { nullable: true })
-    failReason?: CallFailReason;
+  @Field((type) => CallSource)
+  source!: CallSource;
 
-    @Field()
-    phoneNumber!: string;
+  @Field((type) => CallStatus)
+  status!: CallStatus;
 
-    @Field({ nullable: true })
-    durationSec?: number;
+  @Field((type) => CallFailReason, { nullable: true })
+  failReason?: CallFailReason;
 
-    @Field()
-    occurredAt!: Date;
+  @Field()
+  phoneNumber!: string;
 
-    @Field({ nullable: true })
-    nextFollowUpAt?: Date;
+  @Field({ nullable: true })
+  durationSec?: number;
 
-    @Field()
-    createdBy!: string;
+  @Field()
+  occurredAt!: Date;
 
-    @Field()
-    createdByName!: string;
+  @Field({ nullable: true })
+  nextFollowUpAt?: Date;
+
+  @Field()
+  createdBy!: string;
+
+  @Field()
+  createdByName!: string;
 }

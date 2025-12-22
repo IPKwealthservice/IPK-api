@@ -11,8 +11,21 @@ type Caller = {
   name?: string | null;
 };
 
+type LeadMeta = {
+  id: string;
+  leadCode: string | null;
+  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+type LeadCallLogRow = PrismaLeadCallLog & {
+  leadName?: string | null;
+  leadCode?: string | null;
+};
+
 type MissedCallsResult = {
-  calls: PrismaLeadCallLog[];
+  calls: LeadCallLogRow[];
   total: number;
 };
 
@@ -93,7 +106,7 @@ export class LeadCallLogService {
       createdBy?: string;
       limit?: number;
     } = {},
-  ): Promise<PrismaLeadCallLog[]> {
+  ): Promise<LeadCallLogRow[]> {
     const { leadId, createdBy, limit = 100 } = params;
     const where: Prisma.LeadCallLogWhereInput = {
       status: CallStatus.MISSED,
@@ -101,11 +114,13 @@ export class LeadCallLogService {
       ...(createdBy ? { createdBy } : {}),
     };
 
-    return this.prisma.leadCallLog.findMany({
+    const calls = await this.prisma.leadCallLog.findMany({
       where,
       orderBy: { occurredAt: 'desc' },
       take: limit,
     });
+
+    return this.attachLeadMeta(calls);
   }
 
   /** Missed calls list + total count (for UI summaries) */
@@ -132,7 +147,7 @@ export class LeadCallLogService {
       this.prisma.leadCallLog.count({ where }),
     ]);
 
-    return { calls, total };
+    return { calls: await this.attachLeadMeta(calls), total };
   }
 
   /** Fetch a single call log by ID or throw */
@@ -174,6 +189,10 @@ export class LeadCallLogService {
       return this.createPendingCall(user, input);
     }
 
+    if (input.status === CallStatus.MISSED) {
+      return this.createOrUpdateMissedCall(user, input);
+    }
+
     const call = await this.prisma.leadCallLog.create({
       data: {
         leadId: input.leadId,
@@ -195,6 +214,75 @@ export class LeadCallLogService {
     }
 
     return call;
+  }
+
+  /**
+   * Deduplicate MISSED calls by `phoneNumber + minute bucket` (per createdBy).
+   * Key format (as requested):
+   *   `${phoneNumber}-${Math.floor(new Date(occurredAt).getTime() / 60000)}`
+   * Keeps only the latest entry for that key.
+   */
+  private async createOrUpdateMissedCall(
+    user: Caller,
+    input: LeadCallLogInput,
+  ): Promise<PrismaLeadCallLog> {
+    const now = new Date();
+    const { start, end } = this.getMinuteBucket(now);
+
+    const data: Prisma.LeadCallLogCreateInput = {
+      leadId: input.leadId,
+      direction: input.direction ?? CallDirection.OUTGOING,
+      source: this.resolveSource(input.direction, input.source),
+      status: CallStatus.MISSED,
+      phoneNumber: input.phoneNumber,
+      failReason: input.failReason ?? CallFailReason.NO_ANSWER,
+      durationSec: null,
+      nextFollowUpAt: input.nextFollowUpAt ?? null,
+      occurredAt: now,
+      createdBy: user.id,
+      createdByName: user.name ?? 'Unknown',
+    };
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.leadCallLog.findMany({
+        where: {
+          createdBy: user.id,
+          phoneNumber: input.phoneNumber,
+          status: CallStatus.MISSED,
+          occurredAt: { gte: start, lt: end },
+        },
+        orderBy: { occurredAt: 'desc' },
+      });
+
+      if (existing.length === 0) {
+        return tx.leadCallLog.create({ data });
+      }
+
+      const keeper = existing[0];
+      const duplicateIds = existing.slice(1).map((c) => c.id);
+
+      const updated = await tx.leadCallLog.update({
+        where: { id: keeper.id },
+        data: {
+          leadId: data.leadId,
+          direction: data.direction,
+          source: data.source,
+          status: data.status,
+          failReason: data.failReason,
+          phoneNumber: data.phoneNumber,
+          durationSec: null,
+          nextFollowUpAt: data.nextFollowUpAt,
+          occurredAt: data.occurredAt,
+          createdByName: data.createdByName,
+        },
+      });
+
+      if (duplicateIds.length) {
+        await tx.leadCallLog.deleteMany({ where: { id: { in: duplicateIds } } });
+      }
+
+      return updated;
+    });
   }
 
   /** Mark an existing call log as completed (e.g. after call ends) */
@@ -268,6 +356,34 @@ export class LeadCallLogService {
   private resolveSource(direction?: CallDirection | null, source?: CallSource | null): CallSource {
     if (source) return source;
     return direction === CallDirection.INCOMING ? CallSource.INCOMING : CallSource.SYSTEM;
+  }
+
+  private getMinuteBucket(occurredAt: Date) {
+    const bucketMs = Math.floor(occurredAt.getTime() / 60_000) * 60_000;
+    return { start: new Date(bucketMs), end: new Date(bucketMs + 60_000) };
+  }
+
+  private async attachLeadMeta(calls: PrismaLeadCallLog[]): Promise<LeadCallLogRow[]> {
+    const leadIds = Array.from(new Set(calls.map((c) => c.leadId).filter(Boolean)));
+    if (leadIds.length === 0) return calls;
+
+    const leads = await this.prisma.ipkLeadd.findMany({
+      where: { id: { in: leadIds } },
+      select: { id: true, leadCode: true, name: true, firstName: true, lastName: true },
+    });
+
+    const byId = new Map<string, LeadMeta>(leads.map((l) => [l.id, l]));
+    return calls.map((c) => {
+      const lead = byId.get(c.leadId);
+      const fullName = [lead?.firstName ?? '', lead?.lastName ?? ''].join(' ').trim();
+      const computedName = lead?.name ?? (fullName.length ? fullName : null);
+
+      return {
+        ...c,
+        leadName: computedName,
+        leadCode: lead?.leadCode ?? null,
+      };
+    });
   }
 
   /** After one call completes, mark all other PENDING/MISSED calls for that lead as COMPLETED (clean up) */
