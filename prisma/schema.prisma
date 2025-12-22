@@ -7,6 +7,7 @@ datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
+
 enum UserRoles {
   ADMIN
   RM
@@ -79,42 +80,42 @@ enum CallStatus {
 }
 
 model LeadCallLog {
-  id             String      @id @default(auto()) @map("_id") @db.ObjectId
-  leadId         String      @db.ObjectId
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  leadId         String        @db.ObjectId
   direction      CallDirection
   status         CallStatus
   phoneNumber    String
-  durationSec    Int?        // null if pending or not connected
-  occurredAt     DateTime    @default(now())
-  nextFollowUpAt DateTime?   // if user schedules a follow-up
-  createdBy      String      @db.ObjectId  // references User.id
-  createdByRole  UserRoles   // store role (ADMIN, RM, etc)
-  
+  durationSec    Int? // null if pending or not connected
+  occurredAt     DateTime      @default(now())
+  nextFollowUpAt DateTime? // if user schedules a follow-up
+  createdBy      String        @db.ObjectId // references User.id
+  createdByRole  UserRoles // store role (ADMIN, RM, etc)
+
   @@index([leadId, status, occurredAt])
   @@map("lead_call_log")
 }
 
 model LeadEvent {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  leadId     String      @db.ObjectId
-  lead       IpkLeadd    @relation(fields: [leadId], references: [id])
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId String   @db.ObjectId
+  lead   IpkLeadd @relation(fields: [leadId], references: [id])
 
-  authorId   String?     @db.ObjectId
-  author     User?       @relation("LeadEventAuthor", fields: [authorId], references: [id])
+  authorId String? @db.ObjectId
+  author   User?   @relation("LeadEventAuthor", fields: [authorId], references: [id])
 
   type       LeadEventType
-  occurredAt DateTime    @default(now())
+  occurredAt DateTime      @default(now())
 
   // free text & tags
-  text       String?
-  tags       String[]
+  text String?
+  tags String[]
 
   // change snapshots (STATUS_CHANGE, BIO_UPDATED, etc.)
-  prev       Json?
-  next       Json?
+  prev Json?
+  next Json?
 
   // structured meta (channel/outcome/followup)
-  meta       Json?
+  meta Json?
 
   @@index([leadId, occurredAt])
   @@map("lead_event")
@@ -151,7 +152,6 @@ enum Product {
   SIP
 }
 
-
 enum LeadStatus {
   PENDING
   ASSIGNED
@@ -186,37 +186,39 @@ enum LeadStageFilter {
 
 model Counter {
   id      String @id @default(auto()) @map("_id") @db.ObjectId
-  key     String @unique            // e.g. "lead_seq_2509"
+  key     String @unique // e.g. "lead_seq_2509"
   current Int    @default(0)
+
   @@map("counter")
 }
 
 model AssignmentMeta {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
-  name  String @unique              // e.g. "RM_ROUND_ROBIN"
+  name  String @unique // e.g. "RM_ROUND_ROBIN"
   value Int    @default(0)
+
   @@map("assignment_meta")
 }
 
 model User {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  archived  Boolean   @default(false)
-  name      String
-  email     String   @unique
-  role      UserRoles
-  firebaseUid String?   @unique
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  archived     Boolean   @default(false)
+  name         String
+  email        String    @unique
+  role         UserRoles
+  firebaseUid  String?   @unique
   passwordHash String?
-  gender    Gender?
-  phone     String?
-  status    Status     @default(ACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  gender       Gender?
+  phone        String?
+  status       Status    @default(ACTIVE)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Optional: diagnostics if you keep it
   lastAssignedAt DateTime?
 
   // relation
-  assignedLeads IpkLeadd[] @relation("UserAssignedRm")
+  assignedLeads      IpkLeadd[]  @relation("UserAssignedRm")
   authoredLeadEvents LeadEvent[] @relation("LeadEventAuthor")
 
   @@index([role, status, archived])
@@ -225,21 +227,21 @@ model User {
 }
 
 model IpkLeadd {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  firstName String?
-  lastName  String?
-  name      String?
-  email     String?
-  phone     String
+  firstName       String?
+  lastName        String?
+  name            String?
+  email           String?
+  phone           String
   phoneNormalized String?
-  phones    LeadPhone[]
+  phones          LeadPhone[]
 
-  leadCode  String?   // partial unique in DB (create outside Prisma if you prefer)
+  leadCode String? // partial unique in DB (create outside Prisma if you prefer)
 
-  gender    Gender?
-  age       Int?
-  location  String?
+  gender   Gender?
+  age      Int?
+  location String?
 
   referralCode String?
   referralName String?
@@ -253,35 +255,35 @@ model IpkLeadd {
   sipAmount       Int?
   clientTypes     String?
 
-  remark    Json?
-  history   Json?
-  bioText   String?
+  remark  Json?
+  history Json?
+  bioText String?
 
   assignedRmId String? @db.ObjectId
   assignedRm   User?   @relation("UserAssignedRm", fields: [assignedRmId], references: [id])
   assignedRM   String? // denormalized display name
 
-  status    LeadStatus @default(PENDING)
+  status      LeadStatus       @default(PENDING)
   clientStage ClientStage?
   // Optional RM-assigned intent/priority filter
   stageFilter LeadStageFilter?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  archived  Boolean    @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  archived    Boolean          @default(false)
 
-  revisitCount  Int        @default(0)
-  firstSeenAt   DateTime   @default(now())
-  lastSeenAt    DateTime?
-  reenterCount  Int        @default(0)
-  approachAt    DateTime?
-  clientQa      Json?
+  revisitCount Int       @default(0)
+  firstSeenAt  DateTime  @default(now())
+  lastSeenAt   DateTime?
+  reenterCount Int       @default(0)
+  approachAt   DateTime?
+  clientQa     Json?
 
   // Engagement tracking
   lastContactedAt DateTime?
   contactAttempts Int?
   nextActionDueAt DateTime?
 
-  events        LeadEvent[]
+  events LeadEvent[]
 
   // Optional scoring for prioritization
   leadScore Int?
@@ -289,28 +291,34 @@ model IpkLeadd {
   // Account applications opened by this lead
   applications AccountApplication[]
 
+  /**
+   * ✅ ONBOARDING RELATION
+   */
+  onboardingProfile OnboardingProfile?
+
   @@index([leadSource])
   @@index([assignedRmId])
   @@index([createdAt])
   @@index([status])
-  @@map("ipk_leadd")
   @@index([clientStage])
   @@index([stageFilter])
-
-  
-/** ✅ ONBOARDING RELATION */
-  onboardingProfile OnboardingProfile?
-
   @@map("ipk_leadd")
 }
 
-/* ================= ONBOARDING (FIXED) ================= */
+/**
+ * ================= ONBOARDING (FIXED) =================
+ */
+enum OnboardingStatus {
+  IN_PROGRESS
+  COMPLETED
+}
 
 model OnboardingProfile {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  leadId    String   @unique @db.ObjectId
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  leadId String @unique @db.ObjectId
+  status OnboardingStatus @default(IN_PROGRESS)
 
-  lead      IpkLeadd @relation(fields: [leadId], references: [id])
+  lead IpkLeadd @relation(fields: [leadId], references: [id])
 
   name        String?
   gender      String?
@@ -327,10 +335,10 @@ model OnboardingProfile {
   permAddress String?
   location    String?
 
-  mobile    String
-  whatsapp  String?
-  email     String?
-  language  String?
+  mobile   String
+  whatsapp String?
+  email    String?
+  language String?
 
   dpId       String?
   clientCode String?
@@ -355,8 +363,8 @@ model OnboardingProfile {
   billingAddress String?
 
   status    OnboardingStatus @default(IN_PROGRESS)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@map("onboarding_profile")
 }
@@ -371,9 +379,9 @@ enum PhoneLabel {
 }
 
 model LeadPhone {
-  id         String     @id @default(auto()) @map("_id") @db.ObjectId
-  leadId     String     @db.ObjectId
-  lead       IpkLeadd   @relation(fields: [leadId], references: [id])
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId String   @db.ObjectId
+  lead   IpkLeadd @relation(fields: [leadId], references: [id])
 
   label      PhoneLabel @default(MOBILE)
   number     String
@@ -383,8 +391,8 @@ model LeadPhone {
   archived   Boolean    @default(false)
   verifiedAt DateTime?
 
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([leadId, normalized], map: "uniq_leadphone_lead_norm")
   @@map("lead_phone")
@@ -392,31 +400,31 @@ model LeadPhone {
 
 // Account opening application tied to a lead
 model AccountApplication {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
-  leadId    String   @db.ObjectId
-  lead      IpkLeadd @relation(fields: [leadId], references: [id])
+  leadId String   @db.ObjectId
+  lead   IpkLeadd @relation(fields: [leadId], references: [id])
 
   applicationStatus ApplicationStatus @default(SUBMITTED)
   kycStatus         KycStatus         @default(PENDING)
 
   // Sensitive fields should be encrypted client-side or via service
-  encryptedPan      String?
-  encryptedAadhaar  String?
+  encryptedPan     String?
+  encryptedAadhaar String?
 
   // Documents and preferences stored as JSON blobs
-  documents         Json?
-  riskProfile       String?
+  documents             Json?
+  riskProfile           String?
   investmentPreferences Json?
-  consentAudit      Json?
+  consentAudit          Json?
 
   submittedAt DateTime? @default(now())
   reviewedAt  DateTime?
   approvedAt  DateTime?
   declinedAt  DateTime?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([leadId])
   @@index([applicationStatus])
