@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SaveOnboardingInput } from './onboarding.input';
-import { Prisma } from '@prisma/client'; // ✅ CORRECT IMPORT
+import { OnboardingStatus } from '@prisma/client'; // ✅ THIS
 
 @Injectable()
 export class OnboardingService {
@@ -17,7 +17,7 @@ export class OnboardingService {
       create: {
         ...input,
         dob: input.dob ? new Date(input.dob) : undefined,
-       // status: Prisma.OnboardingStatus.IN_PROGRESS, // ✅ FIXED
+        status: OnboardingStatus.IN_PROGRESS, // ✅ CORRECT
       },
     });
   }
@@ -26,8 +26,15 @@ export class OnboardingService {
     return this.prisma.onboardingProfile.update({
       where: { leadId },
       data: {
-        //status: Prisma.OnboardingStatus.COMPLETED, // ✅ FIXED
+        status: OnboardingStatus.COMPLETED, // ✅ CORRECT
       },
+    });
+  }
+
+  async listByStatus(status: OnboardingStatus) {
+    return this.prisma.onboardingProfile.findMany({
+      where: { status },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 }

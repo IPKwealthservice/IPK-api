@@ -316,7 +316,7 @@ enum OnboardingStatus {
 model OnboardingProfile {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   leadId String @unique @db.ObjectId
-  status OnboardingStatus @default(IN_PROGRESS)
+    status    OnboardingStatus @default(IN_PROGRESS)
 
   lead IpkLeadd @relation(fields: [leadId], references: [id])
 
@@ -362,7 +362,6 @@ model OnboardingProfile {
   gst            String?
   billingAddress String?
 
-  status    OnboardingStatus @default(IN_PROGRESS)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
