@@ -3,6 +3,8 @@ import {
   QUESTION_SCORES,
   GRADE_MAP,
   RISK_PROFILE_MAP,
+
+  
 } from "./risk.config";
 import { RiskAnswerInput } from './dto/risk-type.inputs';
 

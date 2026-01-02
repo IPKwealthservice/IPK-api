@@ -32,4 +32,5 @@ export class LeadController {
   remove(@Param('id') id: string) {
     return this.leads.removeLead(id);
   }
+  
 }
