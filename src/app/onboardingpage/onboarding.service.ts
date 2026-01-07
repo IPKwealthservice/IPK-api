@@ -1,50 +1,32 @@
-// src/app/onboarding/onboarding.service.ts
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../../../prisma/prisma.service";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectModel('ClientOnboarding')
+    private readonly onboardingModel: Model<any>,
+  ) {}
 
-  /**
-   * NEW onboarding leads (status = IN_PROGRESS / NEW)
-   */
-  async getNewLeads() {
-    return this.prisma.onboardingProfile.findMany({
-      where: {
-        status: "IN_PROGRESS",
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      select: {
-        leadId: true,
-        name: true,
-        mobile: true,
-        //source: true,
-        status: true,
-      },
+  async create(data: any) {
+    return this.onboardingModel.create({
+      ...data,
+      dob: data.dob ? new Date(data.dob) : null,
     });
   }
 
-  /**
-   * COMPLETED onboarding leads
-   */
-  async getCompletedLeads() {
-    return this.prisma.onboardingProfile.findMany({
-      where: {
-        status: "COMPLETED",
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      select: {
-        leadId: true,
-        name: true,
-        mobile: true,
-        //source: true,
-        status: true,
-      },
+  async findByStatus(status: string) {
+    return this.onboardingModel.find({ status });
+  }
+
+  async findById(id: string) {
+    return this.onboardingModel.findById(id);
+  }
+
+  async update(id: string, data: any) {
+    return this.onboardingModel.findByIdAndUpdate(id, data, {
+      new: true,
     });
   }
 }
