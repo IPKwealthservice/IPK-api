@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ClientOnboardingSchema } from './models/onboarding.schema';
 import { OnboardingController } from './onboarding.controller';
 import { OnboardingService } from './onboarding.service';
-import { ClientOnboardingSchema } from './models/onboarding.model';
+import { OnboardingResolver } from './onboarding.resolver';
 
 @Module({
   imports: [
@@ -11,6 +12,6 @@ import { ClientOnboardingSchema } from './models/onboarding.model';
     ]),
   ],
   controllers: [OnboardingController],
-  providers: [OnboardingService],
+  providers: [OnboardingResolver, OnboardingService],
 })
 export class OnboardingModule {}

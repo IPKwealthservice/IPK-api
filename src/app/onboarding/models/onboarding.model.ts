@@ -1,54 +1,16 @@
-import { Schema } from 'mongoose';
+import { ObjectType, Field, ID } from '@nestjs/graphql';
 
-export const ClientOnboardingSchema = new Schema(
-  {
-    // PERSONAL INFO
-    name: String,
-    location: String,
-    gender: String,
-    dob: Date,
-    age: Number,
-    occupation: String,
-    income: String,
-    company: String,
-    designation: String,
-    pan: String,
-    aadhaar: String,
+@ObjectType()
+export class OnboardingProfile {
+  @Field(() => ID)
+  _id: string;
 
-    contactPersonName: String,
-    contactPersonNo: String,
+  @Field({ nullable: true })
+  name?: string;
 
-    relationship: String,
-    relationshipOther: String,
-    clientSource: String,
-    clientSourceOther: String,
+  @Field({ nullable: true })
+  dob?: Date;
 
-    // ADDRESS
-    commAddress: String,
-    permAddress: String,
-
-    // CONTACT
-    mobile: String,
-    whatsapp: String,
-    email: String,
-
-    // DEMAT
-    dpId: String,
-    clientCode: String,
-    schemeName: String,
-    brokerName: String,
-
-    // BILLING
-    billName: String,
-    gst: String,
-    billingAddress: String,
-
-    // BANK
-    holderName: String,
-    bankName: String,
-    accNumber: String,
-    ifsc: String,
-    micr: String,
-  },
-  { timestamps: true }
-);
+  @Field({ nullable: true })
+  status?: string;
+}
