@@ -1,45 +1,66 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Document } from "mongoose";
+
+export type ClientOnboardingDocument = Document & {
+  dob?: Date | null;
+  status?: string;
+  // keep extra dynamic fields (because you spread ...data)
+  [key: string]: unknown;
+};
+
+export type OnboardingPayload = {
+  dob?: string | Date | null;
+  status?: string;
+  [key: string]: unknown;
+};
 
 @Injectable()
 export class OnboardingService {
   constructor(
-    @InjectModel('ClientOnboarding')
-    private readonly onboardingModel: Model<any>,
+    @InjectModel("ClientOnboarding")
+    private readonly onboardingModel: Model<ClientOnboardingDocument>,
   ) {}
 
   /* ================= REST API METHODS ================= */
 
-  async create(data: any) {
+  async create(data: OnboardingPayload): Promise<ClientOnboardingDocument> {
+    const dob =
+      data.dob != null && data.dob !== ""
+        ? new Date(typeof data.dob === "string" ? data.dob : data.dob)
+        : null;
+
     return this.onboardingModel.create({
       ...data,
-      dob: data.dob ? new Date(data.dob) : null,
+      dob,
     });
   }
 
-  async findByStatus(status: string) {
-  return this.onboardingModel.find({ status });
-}
-
-  async findById(id: string) {
-    return this.onboardingModel.findById(id);
+  async findByStatus(status: string): Promise<ClientOnboardingDocument[]> {
+    return this.onboardingModel.find({ status }).exec();
   }
 
-  async update(id: string, data: any) {
-    return this.onboardingModel.findByIdAndUpdate(id, data, {
-      new: true,
-    });
+  async findById(id: string): Promise<ClientOnboardingDocument | null> {
+    return this.onboardingModel.findById(id).exec();
+  }
+
+  async update(
+    id: string,
+    data: OnboardingPayload,
+  ): Promise<ClientOnboardingDocument | null> {
+    return this.onboardingModel
+      .findByIdAndUpdate(id, data, { new: true })
+      .exec();
   }
 
   /* ================= EXISTING RESOLVER METHODS ================= */
   /* These are REQUIRED because onboarding.resolver.ts uses them */
 
-  async getNewLeads() {
-    return this.onboardingModel.find({ status: 'NEW' });
+  async getNewLeads(): Promise<ClientOnboardingDocument[]> {
+    return this.onboardingModel.find({ status: "NEW" }).exec();
   }
 
-  async getCompletedLeads() {
-    return this.onboardingModel.find({ status: 'COMPLETED' });
+  async getCompletedLeads(): Promise<ClientOnboardingDocument[]> {
+    return this.onboardingModel.find({ status: "COMPLETED" }).exec();
   }
 }

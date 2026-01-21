@@ -2,10 +2,20 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Global() // make available app-wide
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  imports: [
+    ConfigModule,
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get<string>('MONGODB_URI') as string,
+      }),
+    }),
+  ],
   providers: [
     {
       provide: MONGO_CLIENT,
@@ -56,6 +66,6 @@ import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
       inject: [ConfigService, MONGO_CLIENT],
     },
   ],
-  exports: [MONGO_CLIENT, MONGO_DB],
+  exports: [MONGO_CLIENT, MONGO_DB, MongooseModule],
 })
-export class MongoModule { }
+export class MongoModule {}
