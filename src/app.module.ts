@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+//import { ConfigModule } from '@nestjs/config';
 import { PrismaAppModule } from 'prisma';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -20,11 +21,14 @@ import { OnboardingModule } from './app/onboarding/onboarding.module';
 
 @Module({
   imports: [
+
     GraphqlModule,
     ApiConfigModule,
     PrismaAppModule,
     FirebaseModule,
     AuthModule,
+
+    //MongoModule, // ✅ keep this
 
     IpkLeaddModule,
     LeadCallLogModule,
