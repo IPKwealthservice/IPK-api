@@ -1,7 +1,7 @@
 ﻿import { Provider } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+//import { join } from 'path';
 
 export const FIREBASE_ADMIN = 'FIREBASE_ADMIN';
 
@@ -13,6 +13,7 @@ const resolveFirebaseCredential = (): admin.credential.Credential => {
     FIREBASE_SERVICE_ACCOUNT_PATH,
   } = process.env;
 
+  // Try environment variables first
   if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
     const privateKey = FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
     return admin.credential.cert({
@@ -22,21 +23,25 @@ const resolveFirebaseCredential = (): admin.credential.Credential => {
     });
   }
 
-  const fallbackPaths = [
-    FIREBASE_SERVICE_ACCOUNT_PATH,
-    join(process.cwd(), 'firebase-service-account.json'),
-
-  ].filter((p): p is string => !!p);
+  // Try fallback paths
+  const fallbackPaths = [FIREBASE_SERVICE_ACCOUNT_PATH, 'firebase-service-account.json'].filter(
+    (p): p is string => !!p,
+  );
 
   for (const candidate of fallbackPaths) {
     if (!existsSync(candidate)) continue;
-    const raw = readFileSync(candidate, 'utf8');
-    const parsed = JSON.parse(raw) as admin.ServiceAccount;
-    return admin.credential.cert(parsed);
+    try {
+      const raw = readFileSync(candidate, 'utf8');
+      const parsed = JSON.parse(raw) as admin.ServiceAccount;
+      return admin.credential.cert(parsed);
+    } catch (err) {
+      console.error(`Failed to load Firebase credentials from ${candidate}:`, err);
+      continue;
+    }
   }
 
   throw new Error(
-    'Firebase credentials are not configured. Set env vars or provide firebase-service-account.json.',
+    'Firebase credentials are not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY env vars or provide firebase-service-account.json file.',
   );
 };
 
