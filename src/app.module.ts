@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaAppModule } from 'prisma';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -15,14 +16,19 @@ import { UserModule } from './app/user/user-api.module';
 import { UserApiService } from './app/user/user-api.service';
 import { HealthModule } from './common/health.module';
 import { OnboardingAuthModule } from "./app/onboarding-auth/onboarding-auth.module";
+import { MongoModule } from './database/mongo.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }), // ✅ add this
+
     GraphqlModule,
     ApiConfigModule,
     PrismaAppModule,
     FirebaseModule,
     AuthModule,
+
+    MongoModule, // ✅ keep this
 
     IpkLeaddModule,
     LeadCallLogModule,

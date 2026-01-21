@@ -64,8 +64,8 @@ async function bootstrap() {
       }
     };
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+   process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+   process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
