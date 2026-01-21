@@ -7,7 +7,8 @@ import { DatabaseConfig } from './database.config';
     ConfigModule.forRoot({
       load: [DatabaseConfig],
       isGlobal: true,
-      ignoreEnvFile: true,
+      // Load local .env so DATABASE_URL is available in dev
+      ignoreEnvFile: false,
       cache: true,
     }),
   ],

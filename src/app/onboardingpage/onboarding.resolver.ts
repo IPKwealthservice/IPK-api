@@ -1,12 +1,12 @@
-import { Resolver, Query, Args } from '@nestjs/graphql';
+import { Args, Query, Resolver } from '@nestjs/graphql';
+import { OnboardingLead } from './onboarding-lead.type';
 import { OnboardingService } from './onboarding.service';
-import { OnboardingProfile } from './models/onboarding.models';
 
-@Resolver(() => OnboardingProfile)
+@Resolver(() => OnboardingLead)
 export class OnboardingResolver {
   constructor(private readonly service: OnboardingService) {}
 
-  @Query(() => [OnboardingProfile])
+  @Query(() => [OnboardingLead])
   onboardingByStatus(
     @Args('status', { type: () => String }) status: string,
   ) {

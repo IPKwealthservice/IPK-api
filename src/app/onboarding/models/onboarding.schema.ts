@@ -23,6 +23,13 @@ export const ClientOnboardingSchema = new Schema(
     clientSource: String,
     clientSourceOther: String,
 
+    // STATUS
+    status: { type: String, default: 'NEW' },
+
+    // LEAD INFO
+    source: String,
+    clientId: String,
+
     // ADDRESS
     commAddress: String,
     permAddress: String,
@@ -50,5 +57,8 @@ export const ClientOnboardingSchema = new Schema(
     ifsc: String,
     micr: String,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: 'client_onboarding',
+  }
 );

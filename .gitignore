@@ -47,6 +47,9 @@ firebase-service-account.json
 serviceAccount.json
 schema.gql
 src/schema.gql
+firebase-service-account.json
+firebase-service-account.json
+.env
 
 # ────────────────────────────────
 # Runtime / temp files
