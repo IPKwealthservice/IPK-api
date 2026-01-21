@@ -13,5 +13,6 @@ import { OnboardingResolver } from './onboarding.resolver';
   ],
   controllers: [OnboardingController],
   providers: [OnboardingResolver, OnboardingService],
+  exports: [OnboardingService],
 })
 export class OnboardingModule {}

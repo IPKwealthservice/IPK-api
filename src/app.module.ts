@@ -7,6 +7,7 @@ import { AuthModule } from './app/auth/auth.module';
 import { ApiConfigModule } from './app/core/config/config.module';
 import { FirebaseModule } from './app/core/firebase/firebase.module';
 import { GraphqlModule } from './app/core/graphql/graphql.module';
+import { DatabaseModule } from './app/core/database/database.module';
 import './app/enums/app.enum';
 import { LeadCallLogModule } from './app/lead/lead-call-log/lead-call-log.module';
 import { IpkLeaddModule } from './app/lead/ipk-leadd.module';
@@ -15,6 +16,7 @@ import { UserModule } from './app/user/user-api.module';
 import { UserApiService } from './app/user/user-api.service';
 import { HealthModule } from './common/health.module';
 import { OnboardingAuthModule } from "./app/onboarding-auth/onboarding-auth.module";
+import { OnboardingModule } from './app/onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -31,7 +33,9 @@ import { OnboardingAuthModule } from "./app/onboarding-auth/onboarding-auth.modu
     AccountApplicationModule,
     HealthModule,
 
+    DatabaseModule,
     OnboardingAuthModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [AppService, UserApiService],
