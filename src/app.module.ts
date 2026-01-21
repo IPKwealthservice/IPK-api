@@ -6,7 +6,7 @@ import { AppService } from './app.service';
 import { AccountApplicationModule } from './app/account_application/account-application.module';
 import { AuthModule } from './app/auth/auth.module';
 import { ApiConfigModule } from './app/core/config/config.module';
-import { FirebaseModule } from './app/core/firebase/firebase.module';
+//import { FirebaseModule } from './app/core/firebase/firebase.module';
 import { GraphqlModule } from './app/core/graphql/graphql.module';
 import { DatabaseModule } from './app/core/database/database.module';
 import './app/enums/app.enum';
@@ -25,7 +25,7 @@ import { OnboardingModule } from './app/onboarding/onboarding.module';
     GraphqlModule,
     ApiConfigModule,
     PrismaAppModule,
-    FirebaseModule,
+    //FirebaseModule,
     AuthModule,
 
     //MongoModule, // ✅ keep this

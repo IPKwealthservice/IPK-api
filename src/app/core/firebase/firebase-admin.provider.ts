@@ -25,6 +25,7 @@ const resolveFirebaseCredential = (): admin.credential.Credential => {
   const fallbackPaths = [
     FIREBASE_SERVICE_ACCOUNT_PATH,
     join(process.cwd(), 'firebase-service-account.json'),
+
   ].filter((p): p is string => !!p);
 
   for (const candidate of fallbackPaths) {
