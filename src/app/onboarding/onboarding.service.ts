@@ -36,18 +36,8 @@ export class OnboardingService {
     });
   }
 
-<<<<<<< HEAD
-  async findByStatus(status: string) {
-  return this.onboardingModel.find({ status });
-}
-
-
-  async findById(id: string) {
-    return this.onboardingModel.findById(id);
-=======
   async findByStatus(status: string): Promise<ClientOnboardingDocument[]> {
     return this.onboardingModel.find({ status }).exec();
->>>>>>> 8f5e93c5844de33c0342b5365aca7b0468c2020f
   }
 
   async findById(id: string): Promise<ClientOnboardingDocument | null> {
@@ -58,9 +48,7 @@ export class OnboardingService {
     id: string,
     data: OnboardingPayload,
   ): Promise<ClientOnboardingDocument | null> {
-    return this.onboardingModel
-      .findByIdAndUpdate(id, data, { new: true })
-      .exec();
+    return this.onboardingModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 
   /* ================= EXISTING RESOLVER METHODS ================= */
