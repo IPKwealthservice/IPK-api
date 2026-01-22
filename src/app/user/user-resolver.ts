@@ -39,11 +39,11 @@ export class UserResolver {
     private readonly prisma: PrismaService,
   ) {}
 
-  // ?? This triggers Firebase verification + upsert; CurrentUser returns DB user
+  // ✅ FIX: make me nullable so returning null won't crash GraphQL
   @UseGuards(FirebaseAuthGuard)
-  @Query(() => UserEntity)
-  me(@CurrentUser() user: UserEntity) {
-    return user;
+  @Query(() => UserEntity, { nullable: true })
+  me(@CurrentUser() user: UserEntity | null) {
+    return user ?? null;
   }
 
   // TODO: add role guard for admin-only access

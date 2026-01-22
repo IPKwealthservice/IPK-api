@@ -1,6 +1,6 @@
 import { Args, Query, Resolver } from '@nestjs/graphql';
-import { OnboardingProfile } from './models/onboarding.model';
-import { OnboardingService } from './onboarding.service';
+import { OnboardingProfile } from '../onboarding/models/onboarding.model';
+import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Resolver(() => OnboardingProfile)
 export class OnboardingResolver {
