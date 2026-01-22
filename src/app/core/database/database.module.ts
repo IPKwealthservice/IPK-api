@@ -10,4 +10,4 @@ import { MongooseConfigService } from './database.service';
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

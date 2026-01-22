@@ -1,8 +1,8 @@
 ﻿import { ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import * as admin from 'firebase-admin';
-import { FirebaseAuthGuard, FirebaseAuthRequest } from '../core/firebase/firebase-auth.guard';
 import { FIREBASE_ADMIN } from '../core/firebase/firebase-admin.provider';
+import { FirebaseAuthGuard, FirebaseAuthRequest } from '../core/firebase/firebase-auth.guard';
 import { UserApiService } from '../user/user-api.service';
 
 @Injectable()
@@ -17,6 +17,12 @@ export class GqlAuthGuard extends FirebaseAuthGuard {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Development: Auth disabled - allow all access
+    if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  Auth guard disabled for development');
+      return true;
+    }
+
     const activated = await super.canActivate(context);
     if (!activated) {
       return false;
