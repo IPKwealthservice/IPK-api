@@ -23,9 +23,15 @@ export class FirebaseAuthGuard implements CanActivate {
   constructor(
     @Inject(FIREBASE_ADMIN) private readonly firebase: typeof admin,
     protected readonly users: UserApiService,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Development: Auth disabled - allow all access
+    if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  Firebase auth guard disabled for development');
+      return true;
+    }
+
     const req = this.getRequest(context);
     const token = this.extractBearerToken(req);
 

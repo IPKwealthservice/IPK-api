@@ -20,6 +20,7 @@ export class OnboardingAuthService {
     return {
       success: true,
       message: "OTP sent successfully",
+      otp, // return for dev/test until SMS provider is wired
     };
   }
 

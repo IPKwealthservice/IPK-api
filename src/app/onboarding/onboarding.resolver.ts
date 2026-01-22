@@ -12,4 +12,14 @@ export class OnboardingResolver {
   ) {
     return this.service.findByStatus(status);
   }
+
+  @Query(() => [OnboardingProfile])
+  onboardingNewLeads() {
+    return this.service.getNewLeads();
+  }
+
+  @Query(() => [OnboardingProfile])
+  onboardingCompletedLeads() {
+    return this.service.getCompletedLeads();
+  }
 }

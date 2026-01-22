@@ -8,4 +8,8 @@ export class OtpResponse {
 
   @Field({ nullable: true })
   message?: string;
+
+  // Exposed only for dev/testing; in production, remove or mask
+  @Field({ nullable: true })
+  otp?: string;
 }

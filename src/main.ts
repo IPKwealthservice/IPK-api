@@ -64,8 +64,12 @@ async function bootstrap() {
       }
     };
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+<<<<<<< HEAD
+   process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+=======
+    process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+>>>>>>> de6c8d49de0a8545ccca7cd14e056ee931d53c29
+   process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
