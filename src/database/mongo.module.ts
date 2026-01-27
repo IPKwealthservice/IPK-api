@@ -4,26 +4,41 @@ import { MongoClient, ServerApiVersion } from 'mongodb';
 import { MONGO_CLIENT, MONGO_DB } from './mongo.constants';
 import { MongooseModule } from '@nestjs/mongoose';
 
-@Global() // make available app-wide
+@Global()
 @Module({
   imports: [
     ConfigModule,
+
+    // ✅ Only enable Mongoose connection when URI exists
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const uri = config.get<string>('MONGODB_URI') || config.get<string>('DATABASE_URL');
-        return {
-          uri: uri || undefined,
-        };
+        const uri =
+          config.get<string>('MONGODB_URI') ||
+          config.get<string>('DATABASE_URL');
+
+        if (!uri) {
+          console.warn('⚠️  MongoDB URI missing. Mongoose will NOT connect.');
+          // Return a dummy object that won't try to connect
+          // (Mongoose will still try if `uri` exists, so keep it empty string)
+          return { uri: '' };
+        }
+
+        return { uri };
       },
     }),
   ],
+
   providers: [
     {
       provide: MONGO_CLIENT,
+      inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
-        const uri = config.get<string>('MONGODB_URI') || config.get<string>('DATABASE_URL');
+        const uri =
+          config.get<string>('MONGODB_URI') ||
+          config.get<string>('DATABASE_URL');
+
         if (!uri) {
           console.warn('⚠️  MongoDB not configured - skipping connection');
           return null;
@@ -35,37 +50,29 @@ import { MongooseModule } from '@nestjs/mongoose';
             strict: true,
             deprecationErrors: true,
           },
-          maxPoolSize: 10,
-          minPoolSize: 2,
-          maxIdleTimeMS: 60000,
-          connectTimeoutMS: 10000,
-          socketTimeoutMS: 45000,
-          serverSelectionTimeoutMS: 10000,
-          retryWrites: true,
-          retryReads: true,
         });
 
-        try {
-          await client.connect();
-          await client.db('admin').command({ ping: 1 });
-          console.log('✅ MongoDB connected successfully');
-          return client;
-        } catch (error) {
-          console.warn('⚠️  MongoDB connection failed - continuing without database:', (error as Error).message);
-          return null;
-        }
+        await client.connect();
+        await client.db('admin').command({ ping: 1 });
+        console.log('✅ MongoDB connected successfully');
+        return client;
       },
-      inject: [ConfigService],
     },
+
     {
       provide: MONGO_DB,
-      useFactory: (config: ConfigService, client: MongoClient) => {
+      inject: [ConfigService, MONGO_CLIENT],
+      useFactory: (config: ConfigService, client: MongoClient | null) => {
+        if (!client) {
+          // ✅ prevent "reading 'db'" crash
+          return null;
+        }
         const dbName = config.get<string>('MONGODB_DBNAME') || 'ipkcrm';
         return client.db(dbName);
       },
-      inject: [ConfigService, MONGO_CLIENT],
     },
   ],
+
   exports: [MONGO_CLIENT, MONGO_DB, MongooseModule],
 })
 export class MongoModule {}

@@ -5,11 +5,22 @@ import { DatabaseConfig } from './database.config';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [DatabaseConfig],
       isGlobal: true,
-      // Load local .env so DATABASE_URL is available in dev
+
+      // ✅ IMPORTANT: load the .env from project root (same folder as package.json)
+      envFilePath: ['.env'],
+
+      // ✅ ensure .env is used
       ignoreEnvFile: false,
-      cache: true,
+
+      // ✅ keep your custom config loader
+      load: [DatabaseConfig],
+
+      // ✅ while fixing env issues, keep cache OFF
+      cache: false,
+
+      // optional: you can enable this later
+      expandVariables: true,
     }),
   ],
 })
